@@ -2271,6 +2271,7 @@ void SpellMgr::LoadPetLevelupSpellMap()
 
 void SpellMgr::LoadWarlockPetLevelupSpellMap()
 {
+	uint32 count = 0;
     QueryResult *result = WorldDatabase.PQuery("SELECT pet_family, level, spellid FROM pet_level_spell");    
 
     if(!result)
