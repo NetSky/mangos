@@ -753,7 +753,7 @@ class SpellMgr
         SpellMgr();
         ~SpellMgr();
 
-        // Accessors (const or static functions)
+    // Accessors (const or static functions)
     public:
         // Spell affects
         SpellAffectEntry const*GetSpellAffect(uint16 spellId, uint8 effectId) const
@@ -973,7 +973,7 @@ class SpellMgr
             else
                 return NULL;
         }
-        
+
 		PetLevelupSpellSet const* GetWarlockPetLevelupSpellList(uint32 petFamily) const
         {
             WarlockPetLevelupSpellMap::const_iterator itr = mWarlockPetLevelupSpellMap.find(petFamily);
@@ -982,8 +982,8 @@ class SpellMgr
             else
                 return NULL;
         }
-        // Modifiers
-    public:
+
+	public:
         static SpellMgr& Instance();
 
         // Loading data at server startup

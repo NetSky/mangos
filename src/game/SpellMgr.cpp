@@ -2280,16 +2280,19 @@ void SpellMgr::LoadWarlockPetLevelupSpellMap()
 	}
 	else
 	{
+		 uint32 cr_family = 0;
+		 uint32 need_level = 0;
+		 uint32 spellid = 0;
     
 	do
     {
         Field *fields = result->Fetch();
         
-		uint32 cr_family = fields[0].GetUInt32();
-        uint32 reqlevel = fields[1].GetUInt32();
-        uint32 spellid = fields[2].GetUInt32();
+		cr_family = fields[0].GetUInt32();
+        need_level = fields[1].GetUInt32();
+        spellid = fields[2].GetUInt32();
         
-		mWarlockPetLevelupSpellMap[cr_family][reglevel] = spellid;
+		mWarlockPetLevelupSpellMap[cr_family][need_level] = spellid;
         count++;
 	}
     while( result->NextRow() );
