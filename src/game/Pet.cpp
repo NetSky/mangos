@@ -329,11 +329,6 @@ bool Pet::LoadPetFromDB( Player* owner, uint32 petentry, uint32 petnumber, bool 
     }
 
     m_loading = false;
-
-	// Learn warlock pet spells
-	if(owner->getClass() == CLASS_WARLOCK)
-        learnWarlockLevelupSpells(); 
-
     return true;
 }
 
