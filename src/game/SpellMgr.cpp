@@ -1237,6 +1237,10 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             // Combustion and Fire Protection Aura (multi-family check)
             if( spellInfo_1->Id == 11129 && spellInfo_2->SpellIconID == 33 && spellInfo_2->SpellVisual[0] == 321 )
                 return false;
+			//>>FIX<<
+            if( spellInfo_1->EffectSpellClassMaskC[0] == 262144 && spellInfo_2->EffectSpellClassMaskC[0] == 262144)
+                return false;
+
 
             break;
         case SPELLFAMILY_WARLOCK:
