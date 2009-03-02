@@ -1,0 +1,235 @@
+Index: ScriptDev2/include/sc_creature.cpp
+===================================================================
+--- ScriptDev2/include/sc_creature.cpp	(revision 433)
++++ ScriptDev2/include/sc_creature.cpp	(working copy)
+@@ -18,7 +18,7 @@
+     if (!who)
+         return false;
+ 
+-    return (m_creature->GetDistanceSq(who) < VISIBLE_RANGE_SQ) && who->isVisibleForOrDetect(m_creature,true);
++    return (m_creature->GetDistance(who) < VISIBLE_RANGE_SQ) && who->isVisibleForOrDetect(m_creature,true);
+ }
+ 
+ void ScriptedAI::MoveInLineOfSight(Unit *who)
+@@ -341,7 +341,7 @@
+         return false;
+ 
+     //Unit is out of range of this spell
+-    if (m_creature->GetDistanceSq(Target) > TempRange->maxRange*TempRange->maxRange || m_creature->GetDistanceSq(Target) < TempRange->minRange*TempRange->minRange)
++    if (m_creature->GetDistance(Target) > TempRange->maxRange*TempRange->maxRange || m_creature->GetDistance(Target) < TempRange->minRange*TempRange->minRange)
+         return false;
+ 
+     return true;
+Index: ScriptDev2/scripts/custom/custom_example.cpp
+===================================================================
+--- ScriptDev2/scripts/custom/custom_example.cpp	(revision 433)
++++ ScriptDev2/scripts/custom/custom_example.cpp	(working copy)
+@@ -162,7 +162,7 @@
+             //Cast spell one on our current target.
+             if (rand()%50 > 10)
+                 DoCast(m_creature->getVictim(),SPELL_ONE_ALT);
+-            else if (m_creature->GetDistanceSq(m_creature->getVictim()) < 250)
++            else if (m_creature->GetDistance(m_creature->getVictim()) < 250)
+                 DoCast(m_creature->getVictim(),SPELL_ONE);
+ 
+             Spell_1_Timer = 5000;
+Index: ScriptDev2/scripts/npc/npc_escortAI.cpp
+===================================================================
+--- ScriptDev2/scripts/npc/npc_escortAI.cpp	(revision 433)
++++ ScriptDev2/scripts/npc/npc_escortAI.cpp	(working copy)
+@@ -20,7 +20,7 @@
+     if (!who)
+         return false;
+ 
+-    return (m_creature->GetDistanceSq(who) < VISIBLE_RANGE_SQ) && who->isVisibleForOrDetect(m_creature,true);
++    return (m_creature->GetDistance(who) < VISIBLE_RANGE_SQ) && who->isVisibleForOrDetect(m_creature,true);
+ }
+ 
+ void npc_escortAI::AttackStart(Unit *who)
+Index: ScriptDev2/scripts/zone/black_temple/boss_bloodboil.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/black_temple/boss_bloodboil.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/black_temple/boss_bloodboil.cpp	(working copy)
+@@ -70,7 +70,7 @@
+     // functor for operator ">"
+     bool operator()(const Unit* _Left, const Unit* _Right) const
+     {
+-        return (MainTarget->GetDistanceSq(_Left) > MainTarget->GetDistanceSq(_Right));
++        return (MainTarget->GetDistance(_Left) > MainTarget->GetDistance(_Right));
+     }
+ };
+ 
+Index: ScriptDev2/scripts/zone/black_temple/boss_illidan.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/black_temple/boss_illidan.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/black_temple/boss_illidan.cpp	(working copy)
+@@ -2058,7 +2058,7 @@
+     // functor for operator ">"
+     bool operator()(const Unit* _Left, const Unit* _Right) const
+     {
+-        return (MainTarget->GetDistanceSq(_Left) > MainTarget->GetDistanceSq(_Right));
++        return (MainTarget->GetDistance(_Left) > MainTarget->GetDistance(_Right));
+     }
+ };
+ 
+Index: ScriptDev2/scripts/zone/black_temple/boss_reliquary_of_souls.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/black_temple/boss_reliquary_of_souls.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/black_temple/boss_reliquary_of_souls.cpp	(working copy)
+@@ -568,7 +568,7 @@
+     // functor for operator "<"
+     bool operator()(const Unit* _Left, const Unit* _Right) const
+     {
+-        return (MainTarget->GetDistanceSq(_Left) < MainTarget->GetDistanceSq(_Right));
++        return (MainTarget->GetDistance(_Left) < MainTarget->GetDistance(_Right));
+     }
+ };
+ 
+Index: ScriptDev2/scripts/zone/black_temple/boss_teron_gorefiend.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/black_temple/boss_teron_gorefiend.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/black_temple/boss_teron_gorefiend.cpp	(working copy)
+@@ -129,7 +129,7 @@
+     // functor for operator "<"
+     bool operator()(const Unit* _Left, const Unit* _Right) const
+    {
+-       return (MainTarget->GetDistanceSq(_Left) < MainTarget->GetDistanceSq(_Right));
++       return (MainTarget->GetDistance(_Left) < MainTarget->GetDistance(_Right));
+     }
+ };
+ 
+Index: ScriptDev2/scripts/zone/black_temple/illidari_council.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/black_temple/illidari_council.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/black_temple/illidari_council.cpp	(working copy)
+@@ -488,7 +488,7 @@
+ 
+             if(target)
+             {
+-                if(m_creature->GetDistance2dSq(target) > 196 && m_creature->GetDistance2dSq(target) < 1764) // is in ~10-40 yd range
++                if(m_creature->GetDistance(target) > 196 && m_creature->GetDistance(target) < 1764) // is in ~10-40 yd range
+                 {
+                     DoCast(target, SPELL_HAMMER_OF_JUSTICE);
+                     HammerOfJusticeTimer = 20000;
+Index: ScriptDev2/scripts/zone/blackwing_lair/boss_broodlord_lashlayer.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/blackwing_lair/boss_broodlord_lashlayer.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/blackwing_lair/boss_broodlord_lashlayer.cpp	(working copy)
+@@ -73,7 +73,7 @@
+         {
+             float rx,ry,rz;
+             m_creature->GetRespawnCoord(rx, ry, rz);
+-            float spawndist_sq = m_creature->GetDistanceSq(rx,ry,rz);
++            float spawndist_sq = m_creature->GetDistance(rx,ry,rz);
+             if ( spawndist_sq > 2500 )
+             { 
+                 EnterEvadeMode();
+Index: ScriptDev2/scripts/zone/caverns_of_time/hyjal/boss_archimonde.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/caverns_of_time/hyjal/boss_archimonde.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/caverns_of_time/hyjal/boss_archimonde.cpp	(working copy)
+@@ -347,7 +347,7 @@
+     // functor for operator "<"
+     bool operator()(const Unit* _Left, const Unit* _Right) const
+     {
+-        return (MainTarget->GetDistanceSq(_Left) < MainTarget->GetDistanceSq(_Right));
++        return (MainTarget->GetDistance(_Left) < MainTarget->GetDistance(_Right));
+     }
+ };
+ 
+Index: ScriptDev2/scripts/zone/karazhan/boss_maiden_of_virtue.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/karazhan/boss_maiden_of_virtue.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/karazhan/boss_maiden_of_virtue.cpp	(working copy)
+@@ -133,7 +133,7 @@
+             for(std::list<HostilReference *>::iterator itr = t_list.begin(); itr!= t_list.end(); ++itr)
+             {
+                 target = Unit::GetUnit(*m_creature, (*itr)->getUnitGuid());
+-                if(target && target->GetDistance2dSq(m_creature) > 144 ) // checking if > 144 is faster than doing a square root and checking if > 12
++                if(target && target->GetDistance(m_creature) > 144 ) // checking if > 144 is faster than doing a square root and checking if > 12
+                     target_list.push_back(target);
+                 target = NULL;
+             }
+Index: ScriptDev2/scripts/zone/karazhan/boss_midnight.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/karazhan/boss_midnight.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/karazhan/boss_midnight.cpp	(working copy)
+@@ -166,7 +166,7 @@
+         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+         pAttumen->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+         float angle = m_creature->GetAngle(pAttumen);
+-        float distance = m_creature->GetDistance2dSq(pAttumen) - 3;
++        float distance = m_creature->GetDistance(pAttumen) - 3;
+         float newX = m_creature->GetPositionX() + cos(angle)*(distance/2) ;
+         float newY = m_creature->GetPositionY() + sin(angle)*(distance/2) ;
+         float newZ = 50;
+@@ -310,7 +310,7 @@
+                     for(std::list<HostilReference *>::iterator itr = t_list.begin(); itr!= t_list.end(); ++itr)
+                     {
+                         target = Unit::GetUnit(*m_creature, (*itr)->getUnitGuid());
+-                        if(target && target->GetDistance2dSq(m_creature) > 25) // checking if > 25 is faster than doing a square root and checking if > 5
++                        if(target && target->GetDistance(m_creature) > 25) // checking if > 25 is faster than doing a square root and checking if > 5
+                             target_list.push_back(target);
+                         target = NULL;
+                     }
+Index: ScriptDev2/scripts/zone/karazhan/boss_moroes.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/karazhan/boss_moroes.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/karazhan/boss_moroes.cpp	(working copy)
+@@ -361,7 +361,7 @@
+             for(std::list<HostilReference*>::iterator itr = t_list.begin(); itr!= t_list.end(); ++itr)
+             {
+                 target = Unit::GetUnit(*m_creature, (*itr)->getUnitGuid());
+-                if(target && target->GetDistance2dSq(m_creature) < 25)
++                if(target && target->GetDistance(m_creature) < 25)
+                     target_list.push_back(target);
+             }
+             if(target_list.size())
+Index: ScriptDev2/scripts/zone/naxxramas/boss_patchwerk.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/naxxramas/boss_patchwerk.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/naxxramas/boss_patchwerk.cpp	(working copy)
+@@ -106,7 +106,7 @@
+             for (i = m_creature->getThreatManager().getThreatList().begin(); i!=m_creature->getThreatManager().getThreatList().end(); ++i)
+             {
+                 pTemp = Unit::GetUnit((*m_creature),(*i)->getUnitGuid());
+-                if (pTemp && pTemp->isAlive() && pTemp->GetHealth() > MostHP && m_creature->GetDistance2dSq(pTemp) < 25)
++                if (pTemp && pTemp->isAlive() && pTemp->GetHealth() > MostHP && m_creature->GetDistance(pTemp) < 25)
+                 {
+                     MostHP = pTemp->GetHealth();
+                     pMostHPTarget = pTemp;
+Index: ScriptDev2/scripts/zone/tempest_keep/the_eye/boss_void_reaver.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/tempest_keep/the_eye/boss_void_reaver.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/tempest_keep/the_eye/boss_void_reaver.cpp	(working copy)
+@@ -143,7 +143,7 @@
+             for(std::list<HostilReference *>::iterator itr = t_list.begin(); itr!= t_list.end(); ++itr)
+             {
+                 target = Unit::GetUnit(*m_creature, (*itr)->getUnitGuid());
+-                if(target && target->GetDistance2dSq(m_creature) > 225)     //15 yard radius minimum
++                if(target && target->GetDistance(m_creature) > 225)     //15 yard radius minimum
+                     target_list.push_back(target);
+                 target = NULL;
+             }
+Index: ScriptDev2/scripts/zone/temple_of_ahnqiraj/boss_cthun.cpp
+===================================================================
+--- ScriptDev2/scripts/zone/temple_of_ahnqiraj/boss_cthun.cpp	(revision 433)
++++ ScriptDev2/scripts/zone/temple_of_ahnqiraj/boss_cthun.cpp	(working copy)
+@@ -1034,7 +1034,7 @@
+             return;
+ 
+         //EvadeTimer
+-        if (m_creature->GetDistanceSq(m_creature->getVictim()) > ATTACK_DISTANCE)
++        if (m_creature->GetDistance(m_creature->getVictim()) > ATTACK_DISTANCE)
+             if (EvadeTimer < diff)
+             {
+                 Unit* p = Unit::GetUnit(*m_creature, Portal);
+@@ -1135,7 +1135,7 @@
+             return;
+ 
+         //EvadeTimer
+-        if (m_creature->GetDistanceSq(m_creature->getVictim()) > ATTACK_DISTANCE)
++        if (m_creature->GetDistance(m_creature->getVictim()) > ATTACK_DISTANCE)
+             if (EvadeTimer < diff)
+             {
+                 Unit* p = Unit::GetUnit(*m_creature, Portal);
