@@ -121,12 +121,21 @@ bool ChatHandler::HandleNpcWhisperCommand(const char* args)
 }
 
 // global announce
-bool ChatHandler::HandleAnnounceCommand(const char* args)
+bool ChatHandler::HandleSysAnnounceCommand(const char* args)
 {
     if(!*args)
         return false;
 
     sWorld.SendWorldText(LANG_SYSTEMMESSAGE,args);
+    return true;
+}
+
+bool ChatHandler::HandleAnnounceCommand(const char* args)
+{
+    if(!*args)
+        return false;
+
+    sWorld.SendWorldText(LANG_ANNOUNCE_COLOR, m_session->GetPlayer()->GetName(), args);
     return true;
 }
 

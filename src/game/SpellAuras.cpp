@@ -2161,6 +2161,17 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
         }
 
+       // Living Bomb >>FIX<<
+        if(m_spellProto->SpellIconID == 3000 && m_spellProto->SpellFamilyName == SPELLFAMILY_MAGE)
+        {
+            if(!m_target)
+                return;
+
+            m_target->CastSpell(m_target, m_spellProto->EffectBasePoints[1], false);
+            return;
+        }
+
+
         if (caster && m_removeMode == AURA_REMOVE_BY_DEATH)
         {
             // Stop caster Arcane Missle chanelling on death
@@ -4012,6 +4023,17 @@ void Aura::HandleModMechanicImmunity(bool apply, bool Real)
             m_target->RemoveAurasDueToSpell(24397);
             m_target->RemoveAurasDueToSpell(26592);
         }
+    }
+
+    // Heroic Fury (remove Intercept cooldown)>>FIX<<
+    if( apply && GetId() == 60970 && m_target->GetTypeId() == TYPEID_PLAYER )
+    {
+        ((Player*)m_target)->RemoveSpellCooldown(20252);
+
+        WorldPacket data(SMSG_CLEAR_COOLDOWN, (4+8));
+        data << uint32(20252);
+        data << uint64(m_target->GetGUID());
+        ((Player*)m_target)->GetSession()->SendPacket(&data);
     }
 }
 
@@ -6006,6 +6028,17 @@ void Aura::PeriodicTick()
                 break;
 
             int32 drain_amount = m_target->GetPower(power) > pdamage ? pdamage : m_target->GetPower(power);
+			
+			//>>FIX<<
+			SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(GetSpellProto()->Id);
+			if(skillLine->second->skillId == SKILL_AFFLICTION || skillLine->second->skillId == SKILL_MARKSMANSHIP)
+			{
+				uint32 drain = m_target->GetMaxPower(power) * drain_amount /100;
+				if(drain > GetCaster()->GetMaxPower(power) * drain_amount / 50)
+					drain_amount = GetCaster()->GetMaxPower(power) * drain_amount / 50;
+				else
+					drain_amount = drain;
+			}
 
             // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
             if (power == POWER_MANA && m_target->GetTypeId() == TYPEID_PLAYER)

@@ -1230,10 +1230,12 @@ void Spell::EffectDummy(uint32 i)
                     m_caster->CastCustomSpell(m_caster, 12976, &healthModSpellBasePoints0, NULL, NULL, true, NULL);
                     return;
                 }
-                // Bloodthirst
+                // Bloodthirst (>>FIX<<)
                 case 23881:
                 {
-                    m_caster->CastCustomSpell(unitTarget, 23885, &damage, NULL, NULL, true, NULL);
+                    int32 heal = int32(m_caster->GetMaxHealth() / 100);
+                    m_caster->CastCustomSpell(unitTarget, 23885, &heal, NULL, NULL, true, NULL);
+
                     return;
                 }
             }
@@ -2360,7 +2362,18 @@ void Spell::EffectPowerBurn(uint32 i)
 
     // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
     uint32 power = damage;
-    if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
+	
+	//>>FIX<<
+	SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(m_spellInfo->Id);
+	if(skillLine->second->skillId == SKILL_DISCIPLINE)
+	{
+		power = unitTarget->GetMaxPower(powertype) * damage /100;
+		if(power > GetCaster()->GetMaxPower(powertype) * damage / 50)
+		power = GetCaster()->GetMaxPower(powertype) * damage / 50;
+	}
+
+    
+	if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
         power -= ((Player*)unitTarget)->GetSpellCritDamageReduction(power);
 
     int32 new_damage = (curPower < power) ? curPower : power;
