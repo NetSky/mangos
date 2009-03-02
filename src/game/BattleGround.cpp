@@ -357,6 +357,33 @@ void BattleGround::CastSpellOnTeam(uint32 SpellID, uint32 TeamID)
     }
 }
 
+void BattleGround::YellToAll(Creature* creature, const char* text, uint32 language)
+{
+    if(!*text)
+    {
+        sLog.outError("missing text at yelltoall");
+        return;
+    }
+    if(!creature)
+    {
+        sLog.outError("missing creature at yelltoall");
+        return;
+    }
+    for(std::map<uint64, BattleGroundPlayer>::iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
+    {
+        WorldPacket data(SMSG_MESSAGECHAT, 200);
+        Player *plr = objmgr.GetPlayer(itr->first);
+        if(!plr)
+        {
+            sLog.outError("BattleGround: Player " I64FMTD " not found!", itr->first);
+            continue;
+        }
+        creature->BuildMonsterChat(&data,CHAT_MSG_MONSTER_YELL,text,language,creature->GetName(),itr->first);
+        plr->GetSession()->SendPacket(&data);
+    }
+}
+
+
 void BattleGround::RewardHonorToTeam(uint32 Honor, uint32 TeamID)
 {
     for(std::map<uint64, BattleGroundPlayer>::iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
@@ -513,6 +540,12 @@ void BattleGround::EndBattleGround(uint32 winner)
         {
             plr->ResurrectPlayer(1.0f);
             plr->SpawnCorpseBones();
+        }
+        else
+        {
+            //needed cause else in av some creatures will kill the players at the end
+            plr->CombatStop();
+            plr->getHostilRefManager().deleteReferences();
         }
 
         uint32 team = itr->second.Team;
@@ -1198,6 +1231,47 @@ void BattleGround::DoorOpen(uint32 type)
     }
 }
 
+GameObject* BattleGround::GetBGObject(uint32 type)
+{
+    GameObject *obj = HashMapHolder<GameObject>::Find(m_BgObjects[type]);
+    if(!obj)
+        sLog.outError("couldn't get gameobject %i",type);
+    return obj;
+}
+
+Creature* BattleGround::GetBGCreature(uint32 type)
+{
+    Creature *creature = HashMapHolder<Creature>::Find(m_BgCreatures[type]);
+    if(!creature)
+        sLog.outError("couldn't get creature %i",type);
+    return creature;
+}
+
+void BattleGround::SpawnBGObject(GameObject* obj, uint32 respawntime)
+{
+    if(!obj)
+        return;
+    Map * map = MapManager::Instance().FindMap(GetMapId(),GetInstanceID());
+    if(!map)
+        return;
+    if( respawntime == 0 )
+    {
+        obj->SetPhaseMask(PHASEMASK_NORMAL,false);
+        if( obj->getLootState() == GO_JUST_DEACTIVATED )
+            obj->SetLootState(GO_READY);
+        obj->SetRespawnTime(0);
+        map->Add(obj);
+    }
+    else
+    {
+        obj->SetPhaseMask(0,false);
+        map->Add(obj);
+        obj->SetRespawnTime(respawntime);
+        obj->SetLootState(GO_JUST_DEACTIVATED);
+        obj->SaveRespawnTime();
+    }
+}
+
 void BattleGround::SpawnBGObject(uint32 type, uint32 respawntime)
 {
     Map * map = MapManager::Instance().FindMap(GetMapId(),GetInstanceID());
@@ -1208,10 +1282,9 @@ void BattleGround::SpawnBGObject(uint32 type, uint32 respawntime)
         GameObject *obj = HashMapHolder<GameObject>::Find(m_BgObjects[type]);
         if(obj)
         {
-            //we need to change state from GO_JUST_DEACTIVATED to GO_READY in case battleground is starting again
-            if( obj->getLootState() == GO_JUST_DEACTIVATED )
-                obj->SetLootState(GO_READY);
-            obj->SetRespawnTime(0);
+            obj->SetPhaseMask(PHASEMASK_NORMAL,false);
+            obj->SetLootState(GO_READY);
+            obj->Respawn();
             map->Add(obj);
         }
     }
@@ -1220,8 +1293,8 @@ void BattleGround::SpawnBGObject(uint32 type, uint32 respawntime)
         GameObject *obj = HashMapHolder<GameObject>::Find(m_BgObjects[type]);
         if(obj)
         {
+            obj->SetPhaseMask(0,false);
             map->Add(obj);
-            obj->SetRespawnTime(respawntime);
             obj->SetLootState(GO_JUST_DEACTIVATED);
         }
     }
@@ -1249,6 +1322,14 @@ Creature* BattleGround::AddCreature(uint32 entry, uint32 type, uint32 teamval, f
         return NULL;
     }
 
+    pCreature->SetDBTableGuid(pCreature->GetGUID());
+    CreatureData &data = objmgr.NewOrExistCreatureData(pCreature->GetDBTableGUIDLow());
+    data.posX           = x;
+    data.posY           = y;
+    data.posZ           = z;
+    data.orientation    = o;
+    data.spawndist      = 15; //for randommovement,spawning
+
     pCreature->AIM_Initialize();
 
     //pCreature->SetDungeonDifficulty(0);
@@ -1258,36 +1339,28 @@ Creature* BattleGround::AddCreature(uint32 entry, uint32 type, uint32 teamval, f
 
     return  pCreature;
 }
-/*
-void BattleGround::SpawnBGCreature(uint32 type, uint32 respawntime)
-{
-    Map * map = MapManager::Instance().FindMap(GetMapId(),GetInstanceId());
-    if(!map)
-        return false;
 
+void BattleGround::SpawnBGCreature(Creature* obj, uint32 respawntime)
+{
+    if(!obj)
+        return;
+    Map * map = MapManager::Instance().FindMap(GetMapId(),GetInstanceID());
+    if(!map)
+        return;
     if(respawntime == 0)
     {
-        Creature *obj = HashMapHolder<Creature>::Find(m_BgCreatures[type]);
-        if(obj)
-        {
-            //obj->Respawn();                               // bugged
-            obj->SetRespawnTime(0);
-            objmgr.SaveCreatureRespawnTime(obj->GetGUIDLow(), GetInstanceID(), 0);
-            map->Add(obj);
-        }
+        obj->SetPhaseMask(PHASEMASK_NORMAL,false);
+        obj->setDeathState(ALIVE);
+        obj->Respawn();
+        map->Add(obj);
     }
     else
     {
-        Creature *obj = HashMapHolder<Creature>::Find(m_BgCreatures[type]);
-        if(obj)
-        {
-            obj->setDeathState(DEAD);
-            obj->SetRespawnTime(respawntime);
-            map->Add(obj);
-        }
+        obj->SetPhaseMask(0,false);
+        map->Add(obj);
     }
 }
-*/
+
 bool BattleGround::DelCreature(uint32 type)
 {
     if(!m_BgCreatures[type])
@@ -1296,11 +1369,10 @@ bool BattleGround::DelCreature(uint32 type)
     Creature *cr = HashMapHolder<Creature>::Find(m_BgCreatures[type]);
     if(!cr)
     {
-        sLog.outError("Can't find creature guid: %u",GUID_LOPART(m_BgCreatures[type]));
+        sLog.outError("Can't find Battleground creature type:%u guid:%u",type, GUID_LOPART(m_BgCreatures[type]));
         return false;
     }
-    cr->CleanupsBeforeDelete();
-    cr->AddObjectToRemoveList();
+    cr->SetDeleteAfterNoAggro(true);
     m_BgCreatures[type] = 0;
     return true;
 }
@@ -1313,7 +1385,7 @@ bool BattleGround::DelObject(uint32 type)
     GameObject *obj = HashMapHolder<GameObject>::Find(m_BgObjects[type]);
     if(!obj)
     {
-        sLog.outError("Can't find gobject guid: %u",GUID_LOPART(m_BgObjects[type]));
+        sLog.outError("Can't find Battleground gobject type:%u guid:%u",type, GUID_LOPART(m_BgObjects[type]));
         return false;
     }
     obj->SetRespawnTime(0);                                 // not save respawn time
@@ -1455,6 +1527,15 @@ void BattleGround::HandleKillPlayer( Player *player, Player *killer )
 
     // to be able to remove insignia
     player->SetFlag( UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE );
+}
+
+int32 BattleGround::GetObjectType(uint64 guid)
+{
+    for(uint32 i = 0;i <= m_BgObjects.size(); i++)
+        if(m_BgObjects[i] == guid)
+            return i;
+    sLog.outError("BattleGround: cheating? a player used a gameobject which isnt supposed to be a usable object!");
+    return -1;
 }
 
 // return the player's team based on battlegroundplayer info

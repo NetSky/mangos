@@ -36,6 +36,7 @@
 #include "CellImpl.h"
 #include "InstanceData.h"
 #include "BattleGround.h"
+#include "BattleGroundAV.h"
 #include "Util.h"
 
 GameObject::GameObject() : WorldObject()
@@ -167,9 +168,12 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map *map, uint32 phaseMa
     //Notify the map's instance data.
     //Only works if you create the object in it, not if it is moves to that map.
     //Normally non-players do not teleport to other maps.
-    if(map->IsDungeon() && ((InstanceMap*)map)->GetInstanceData())
+    if(map)
     {
-        ((InstanceMap*)map)->GetInstanceData()->OnObjectCreate(this);
+        if(map->IsDungeon() && ((InstanceMap*)map)->GetInstanceData())
+            ((InstanceMap*)map)->GetInstanceData()->OnObjectCreate(this);
+        else if(map->IsBattleGround() && ((BattleGroundMap*)map)->GetBG())
+            ((BattleGroundMap*)map)->GetBG()->OnObjectCreate(this);
     }
 
     return true;
@@ -446,7 +450,8 @@ void GameObject::Update(uint32 /*p_time*/)
                 return;
             }
 
-            m_respawnTime = time(NULL) + m_respawnDelayTime;
+            if(m_respawnTime<=time(NULL))
+                m_respawnTime = time(NULL) + m_respawnDelayTime;
 
             // if option not set then object will be saved at grid unload
             if(sWorld.getConfig(CONFIG_SAVE_RESPAWN_TIME_IMMEDIATLY))
@@ -771,7 +776,14 @@ bool GameObject::ActivateToQuest( Player *pTarget)const
         case GAMEOBJECT_TYPE_CHEST:
         {
             if(LootTemplates_Gameobject.HaveQuestLootForPlayer(GetLootId(), pTarget))
+            {
+                //look for battlegroundAV for some objects which are only activated after mine gots captured by own team
+                if(GetEntry() == BG_AV_OBJECTID_MINE_N || GetEntry() == BG_AV_OBJECTID_MINE_S)
+                    if(BattleGround *bg = pTarget->GetBattleGround())
+                        if(bg->GetTypeID() == BATTLEGROUND_AV && !(((BattleGroundAV*)bg)->PlayerCanDoMineQuest(GetEntry(),pTarget->GetTeam())))
+                            return false;
                 return true;
+            }
             break;
         }
         case GAMEOBJECT_TYPE_GOOBER:
