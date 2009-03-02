@@ -62,6 +62,7 @@
 #include "GMTicketMgr.h"
 #include "Util.h"
 #include "AuctionHouseBot.h"
+#include "OutdoorPvPMgr.h"
 
 INSTANTIATE_SINGLETON_1( World );
 
@@ -1397,6 +1398,9 @@ void World::SetInitialWorldSettings()
     sBattleGroundMgr.CreateInitialBattleGrounds();
     sBattleGroundMgr.InitAutomaticArenaPointDistribution();
 
+    sLog.outString( "Starting Outdoor PvP System" );
+    sOutdoorPvPMgr.InitOutdoorPvP();
+
     //Not sure if this can be moved up in the sequence (with static data loading) as it uses MapManager
     sLog.outString( "Loading Transports..." );
     MapManager::Instance().LoadTransports();
@@ -1552,6 +1556,8 @@ void World::Update(uint32 diff)
             ScriptsProcess();
 
         sBattleGroundMgr.Update(diff);
+
+        sOutdoorPvPMgr.Update(diff);
     }
 
     // execute callbacks from sql queries that were queued recently
