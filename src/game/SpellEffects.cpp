@@ -49,6 +49,7 @@
 #include "BattleGround.h"
 #include "BattleGroundEY.h"
 #include "BattleGroundWS.h"
+#include "OutdoorPvPMgr.h"
 #include "VMapFactory.h"
 #include "Language.h"
 #include "SocialMgr.h"
@@ -1245,10 +1246,12 @@ void Spell::EffectDummy(uint32 i)
                     m_caster->CastCustomSpell(m_caster, 12976, &healthModSpellBasePoints0, NULL, NULL, true, NULL);
                     return;
                 }
-                // Bloodthirst
+                // Bloodthirst (>>FIX<<)
                 case 23881:
                 {
-                    m_caster->CastCustomSpell(unitTarget, 23885, &damage, NULL, NULL, true, NULL);
+                    int32 heal = int32(m_caster->GetMaxHealth() / 100);
+                    m_caster->CastCustomSpell(unitTarget, 23885, &heal, NULL, NULL, true, NULL);
+
                     return;
                 }
             }
@@ -2375,7 +2378,18 @@ void Spell::EffectPowerBurn(uint32 i)
 
     // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
     uint32 power = damage;
-    if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
+	
+	//>>FIX<<
+	SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(m_spellInfo->Id);
+	if(skillLine->second->skillId == SKILL_DISCIPLINE)
+	{
+		power = unitTarget->GetMaxPower(powertype) * damage /100;
+		if(power > GetCaster()->GetMaxPower(powertype) * damage / 50)
+		power = GetCaster()->GetMaxPower(powertype) * damage / 50;
+	}
+
+    
+	if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
         power -= ((Player*)unitTarget)->GetSpellCritDamageReduction(power);
 
     int32 new_damage = (curPower < power) ? curPower : power;
@@ -2924,7 +2938,7 @@ void Spell::EffectOpenLock(uint32 /*i*/)
             if(BattleGround *bg = player->GetBattleGround())
             {
                 // check if it's correct bg
-                if(bg && bg->GetTypeID() == BATTLEGROUND_AB)
+                if(bg->GetTypeID() == BATTLEGROUND_AB || bg->GetTypeID() == BATTLEGROUND_AV)
                     bg->EventPlayerClickedOnFlag(player, gameObjTarget);
                 return;
             }
@@ -2940,6 +2954,10 @@ void Spell::EffectOpenLock(uint32 /*i*/)
                 return;
             }
         }
+        // handle outdoor pvp object opening, return true if go was registered for handling
+        // these objects must have been spawned by outdoorpvp!
+        else if(gameObjTarget->GetGOInfo()->type == GAMEOBJECT_TYPE_GOOBER && sOutdoorPvPMgr.HandleOpenGo(player, gameObjTarget->GetGUID()))
+            return;
         lockId = gameObjTarget->GetLockId();
         guid = gameObjTarget->GetGUID();
     }

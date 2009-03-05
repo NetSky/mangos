@@ -2669,6 +2669,27 @@ void Spell::finish(bool ok)
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
         ((Player*)m_caster)->RemoveSpellMods(this);
 
+    //holy nova heal
+    if(m_spellInfo->SpellFamilyName == SPELLFAMILY_PRIEST && m_spellInfo->SpellIconID == 1874)
+    {
+        int holy_nova_heal = 0;
+        switch(m_spellInfo->Id)
+        {
+            case 15237: holy_nova_heal = 23455; break;
+            case 15430: holy_nova_heal = 23458; break;
+            case 15431: holy_nova_heal = 23459; break;
+            case 27799: holy_nova_heal = 27803; break;
+            case 27804: holy_nova_heal = 27800; break;
+            case 27801: holy_nova_heal = 27805; break;
+            case 25331: holy_nova_heal = 25329; break;
+            case 48077: holy_nova_heal = 48075; break;
+            case 48078: holy_nova_heal = 48076; break;
+            default:break;
+        }
+        if(holy_nova_heal)
+            m_caster->CastSpell(m_caster, holy_nova_heal, true);
+    }
+
     // handle SPELL_AURA_ADD_TARGET_TRIGGER auras
     Unit::AuraList const& targetTriggers = m_caster->GetAurasByType(SPELL_AURA_ADD_TARGET_TRIGGER);
     for(Unit::AuraList::const_iterator i = targetTriggers.begin(); i != targetTriggers.end(); ++i)
@@ -3721,9 +3742,10 @@ uint8 Spell::CanCast(bool strict)
         //Must be behind the target.
         if( m_spellInfo->AttributesEx2 == 0x100000 && (m_spellInfo->AttributesEx & 0x200) == 0x200 && target->HasInArc(M_PI, m_caster) )
         {
-            //Exclusion for Pounce: Facing Limitation was removed in 2.0.1, but it still uses the same, old Ex-Flags
-            if( m_spellInfo->SpellFamilyName != SPELLFAMILY_DRUID || m_spellInfo->SpellFamilyFlags != 0x0000000000020000LL )
-            {
+            //Exclusion for Pounce and Mutilate: Facing Limitation was removed in 2.0.1 and 3.0.3, but they still use the same, old Ex-Flags >>FIX<<
+            if((m_spellInfo->SpellFamilyName != SPELLFAMILY_DRUID || m_spellInfo->SpellFamilyFlags != 0x0000000000020000LL) && !(m_spellInfo->SpellFamilyName == SPELLFAMILY_ROGUE && m_spellInfo->SpellFamilyFlags == 0x0020000000000000LL))
+
+			{
                 SendInterrupted(2);
                 return SPELL_FAILED_NOT_BEHIND;
             }
@@ -4250,13 +4272,36 @@ uint8 Spell::CanCast(bool strict)
                     case SUMMON_TYPE_DEMON:
                     case SUMMON_TYPE_SUMMON:
                     {
-                        if(m_caster->GetPetGUID())
-                            return SPELL_FAILED_ALREADY_HAVE_SUMMON;
+        				// Outdoor PvP - Trigger FireBomb
 
-                        if(m_caster->GetCharmGUID())
-                            return SPELL_FAILED_ALREADY_HAVE_CHARM;
-                        break;
-                    }
+						// fire bomb trigger, can only be used in halaa opvp when flying on a path from a wyvern roost
+                        // yeah, hacky, I know, but neither item flags, nor spell attributes contained any useable data (or I was unable to find it)
+                         if(m_spellInfo->EffectMiscValue[i] == 18225 && m_caster->GetTypeId() == TYPEID_PLAYER)
+                         {
+                           // if not in halaa or not in flight, cannot be used
+                             if(m_caster->GetAreaId() != 3628 || !m_caster->isInFlight())
+                                 return SPELL_FAILED_NOT_HERE;
+
+                          // if not on one of the specific taxi paths, then cannot be used
+                            uint32 src_node = ((Player*)m_caster)->m_taxi.GetTaxiSource();
+                            if( src_node != 103 &&
+                                src_node != 105 &&
+                                src_node != 107 &&
+                                src_node != 109 )
+                            return SPELL_FAILED_NOT_HERE;
+                         }
+                        // Outdoor PvP - Trigger FireBomb end
+						 else
+						 {
+					      if(m_caster->GetPetGUID())
+                             return SPELL_FAILED_ALREADY_HAVE_SUMMON;
+
+                          if(m_caster->GetCharmGUID())
+                             return SPELL_FAILED_ALREADY_HAVE_CHARM;
+                          break;
+						 } 
+                       break;
+				   }  
                 }
                 break;
             }
@@ -4271,7 +4316,7 @@ uint8 Spell::CanCast(bool strict)
 
                 break;
             }
-            case SPELL_EFFECT_SUMMON_PET:
+           case SPELL_EFFECT_SUMMON_PET:
             {
                 if(m_caster->GetPetGUID())                  //let warlock do a replacement summon
                 {

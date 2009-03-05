@@ -27,6 +27,7 @@ enum MangosStrings
 
     // level 0 chat
     LANG_SYSTEMMESSAGE                  = 3,
+    LANG_ANNOUNCE_COLOR                 = 2000,
     LANG_EVENTMESSAGE                   = 4,
     LANG_NO_HELP_CMD                    = 5,
     LANG_NO_CMD                         = 6,
@@ -635,6 +636,63 @@ enum MangosStrings
     LANG_ARENA_FIFTEEN_SECONDS          = 703,
     LANG_ARENA_BEGUN                    = 704,
 
+    // opvp hp
+    LANG_OPVP_HP_CAPTURE_OVERLOOK_H     = 9001,
+    LANG_OPVP_HP_CAPTURE_OVERLOOK_A     = 9002,
+    LANG_OPVP_HP_CAPTURE_STADIUM_H      = 9003,
+    LANG_OPVP_HP_CAPTURE_STADIUM_A      = 9004,
+    LANG_OPVP_HP_CAPTURE_BROKENHILL_H   = 9005,
+    LANG_OPVP_HP_CAPTURE_BROKENHILL_A   = 9006,
+    LANG_OPVP_HP_LOOSE_OVERLOOK_H       = 9007,
+    LANG_OPVP_HP_LOOSE_OVERLOOK_A       = 9008,
+    LANG_OPVP_HP_LOOSE_STADIUM_H        = 9009,
+    LANG_OPVP_HP_LOOSE_STADIUM_A        = 9010,
+    LANG_OPVP_HP_LOOSE_BROKENHILL_H     = 9011,
+    LANG_OPVP_HP_LOOSE_BROKENHILL_A     = 9012,
+    // opvp zm
+    LANG_OPVP_ZM_CAPTURE_WEST_H         = 9013,
+    LANG_OPVP_ZM_CAPTURE_WEST_A         = 9014,
+    LANG_OPVP_ZM_CAPTURE_EAST_H         = 9015,
+    LANG_OPVP_ZM_CAPTURE_EAST_A         = 9016,
+    LANG_OPVP_ZM_CAPTURE_GY_H           = 9017,
+    LANG_OPVP_ZM_CAPTURE_GY_A           = 9018,
+    LANG_OPVP_ZM_LOOSE_WEST_H           = 9019,
+    LANG_OPVP_ZM_LOOSE_WEST_A           = 9020,
+    LANG_OPVP_ZM_LOOSE_EAST_H           = 9021,
+    LANG_OPVP_ZM_LOOSE_EAST_A           = 9022,
+    LANG_OPVP_ZM_LOOSE_GY_H             = 9023,
+    LANG_OPVP_ZM_LOOSE_GY_A             = 9024,
+    // opvp na
+    LANG_OPVP_NA_CAPTURE_H              = 9025,
+    LANG_OPVP_NA_CAPTURE_A              = 9026,
+    LANG_OPVP_NA_LOOSE_H                = 9027,
+    LANG_OPVP_NA_LOOSE_A                = 9028,
+    // opvp tf
+    LANG_OPVP_TF_CAPTURE_H              = 9029,
+    LANG_OPVP_TF_CAPTURE_A              = 9030,
+    LANG_OPVP_TF_LOOSE_H                = 9031,
+    LANG_OPVP_TF_LOOSE_A                = 9032,
+    // opvp ep
+    LANG_OPVP_EP_CAPTURE_NPT_H          = 9033,
+    LANG_OPVP_EP_CAPTURE_NPT_A          = 9034,
+    LANG_OPVP_EP_CAPTURE_EWT_H          = 9035,
+    LANG_OPVP_EP_CAPTURE_EWT_A          = 9036,
+    LANG_OPVP_EP_CAPTURE_CGT_H          = 9037,
+    LANG_OPVP_EP_CAPTURE_CGT_A          = 9038,
+    LANG_OPVP_EP_CAPTURE_PWT_H          = 9039,
+    LANG_OPVP_EP_CAPTURE_PWT_A          = 9040,
+    LANG_OPVP_EP_LOOSE_NPT_H            = 9041,
+    LANG_OPVP_EP_LOOSE_NPT_A            = 9042,
+    LANG_OPVP_EP_LOOSE_EWT_H            = 9043,
+    LANG_OPVP_EP_LOOSE_EWT_A            = 9044,
+    LANG_OPVP_EP_LOOSE_CGT_H            = 9045,
+    LANG_OPVP_EP_LOOSE_CGT_A            = 9046,
+    LANG_OPVP_EP_LOOSE_PWT_H            = 9047,
+    LANG_OPVP_EP_LOOSE_PWT_A            = 9048,
+    // opvp si
+    LANG_OPVP_SI_CAPTURE_H              = 9049,
+    LANG_OPVP_SI_CAPTURE_A              = 9050,
+
     LANG_WAIT_BEFORE_SPEAKING           = 705,
     LANG_NOT_EQUIPPED_ITEM              = 706,
     LANG_PLAYER_DND                     = 707,
@@ -680,7 +738,8 @@ enum MangosStrings
     LANG_DIST_ARENA_POINTS_TEAM_START   = 744,
     LANG_DIST_ARENA_POINTS_TEAM_END     = 745,
     LANG_DIST_ARENA_POINTS_END          = 746,
-    // Room for batleground/arena strings 747-799 not used
+
+   // Room for batleground/arena strings 747-799 not used
 
     // in game strings
     //                                  = 800, not used
@@ -741,6 +800,41 @@ enum MangosStrings
 
     // Use for not-in-offcial-sources patches
     //                                    10000-10999
+    LANG_BG_AV_ALLY                     = 10747,
+    LANG_BG_AV_HORDE                    = 10748,
+    LANG_BG_AV_TOWER_TAKEN              = 10749,
+    LANG_BG_AV_TOWER_ASSAULTED          = 10750,
+    LANG_BG_AV_TOWER_DEFENDED           = 10751,
+    LANG_BG_AV_GRAVE_TAKEN              = 10752,
+    LANG_BG_AV_GRAVE_DEFENDED           = 10753,
+    LANG_BG_AV_GRAVE_ASSAULTED          = 10754,
+    LANG_BG_AV_MINE_TAKEN               = 10755,
+    LANG_BG_AV_MINE_NORTH               = 10756,
+    LANG_BG_AV_MINE_SOUTH               = 10757,
+
+    LANG_BG_AV_NODE_GRAVE_STORM_AID     = 10758,
+    LANG_BG_AV_NODE_TOWER_DUN_S         = 10759,
+    LANG_BG_AV_NODE_TOWER_DUN_N         = 10760,
+    LANG_BG_AV_NODE_GRAVE_STORMPIKE     = 10761,
+    LANG_BG_AV_NODE_TOWER_ICEWING       = 10762,
+    LANG_BG_AV_NODE_GRAVE_STONE         = 10763,
+    LANG_BG_AV_NODE_TOWER_STONE         = 10764,
+    LANG_BG_AV_NODE_GRAVE_SNOW          = 10765,
+    LANG_BG_AV_NODE_TOWER_ICE           = 10766,
+    LANG_BG_AV_NODE_GRAVE_ICE           = 10767,
+    LANG_BG_AV_NODE_TOWER_POINT         = 10768,
+    LANG_BG_AV_NODE_GRAVE_FROST         = 10769,
+    LANG_BG_AV_NODE_TOWER_FROST_E       = 10770,
+    LANG_BG_AV_NODE_TOWER_FROST_W       = 10771,
+    LANG_BG_AV_NODE_GRAVE_FROST_HUT     = 10772,
+
+    LANG_BG_AV_ONEMINTOSTART            = 10773,
+    LANG_BG_AV_HALFMINTOSTART           = 10774,
+    LANG_BG_AV_STARTED                  = 10775,
+    LANG_BG_AV_A_NEAR_LOSE              = 10776,
+    LANG_BG_AV_H_NEAR_LOSE              = 10777,
+    LANG_BG_AV_H_CAPTAIN_DEAD           = 10778,
+    LANG_BG_AV_A_CAPTAIN_DEAD           = 10779,
 
     // Use for custom patches             11000-11999
 

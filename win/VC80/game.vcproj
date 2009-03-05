@@ -683,6 +683,78 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\game\OutdoorPvP.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvP.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPEP.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPEP.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPHP.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPHP.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPMgr.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPMgr.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPNA.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPNA.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPSI.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPSI.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPTF.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPTF.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPZM.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPZM.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPLA.cpp"
+				> 
+			</File>	
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPLA.h"
+				>
+			</File>
+      <File
 				RelativePath="..\..\src\game\Path.h"
 				>
 			</File>
@@ -849,6 +921,12 @@
 			<File
 				RelativePath="..\..\src\game\ArenaTeam.h"
 				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\AuctionHouseBot.cpp">
+			</File>
+			<File
+				RelativePath="..\..\src\game\AuctionHouseBot.h">
 			</File>
 			<File
 				RelativePath="..\..\src\game\AuctionHouseMgr.cpp"
@@ -1092,6 +1170,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\game\ObjectPosSelector.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPObjectiveAI.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\game\OutdoorPvPObjectiveAI.h"
 				>
 			</File>
 			<File

@@ -40,6 +40,8 @@
 #include "Creature.h"
 #include "Formulas.h"
 #include "BattleGround.h"
+#include "OutdoorPvP.h"
+#include "OutdoorPvPMgr.h"
 #include "CreatureAI.h"
 #include "Util.h"
 #include "GridNotifiers.h"
@@ -2143,6 +2145,17 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             }
         }
 
+       // Living Bomb >>FIX<<
+        if(m_spellProto->SpellIconID == 3000 && m_spellProto->SpellFamilyName == SPELLFAMILY_MAGE)
+        {
+            if(!m_target)
+                return;
+
+            m_target->CastSpell(m_target, m_spellProto->EffectBasePoints[1], false);
+            return;
+        }
+
+
         if (caster && m_removeMode == AURA_REMOVE_BY_DEATH)
         {
             // Stop caster Arcane Missle chanelling on death
@@ -3452,10 +3465,18 @@ void Aura::HandleModStealth(bool apply, bool Real)
 {
     if(apply)
     {
-        // drop flag at stealth in bg
-        if(Real && m_target->GetTypeId()==TYPEID_PLAYER && ((Player*)m_target)->InBattleGround())
-            if(BattleGround *bg = ((Player*)m_target)->GetBattleGround())
-                bg->EventPlayerDroppedFlag((Player*)m_target);
+        if(Real && m_target->GetTypeId()==TYPEID_PLAYER)
+        {
+            // drop flag at stealth in bg
+            if(((Player*)m_target)->InBattleGround())
+            {
+                if(BattleGround *bg = ((Player*)m_target)->GetBattleGround())
+                    bg->EventPlayerDroppedFlag((Player*)m_target);
+            }
+            // remove player from the objective's active player count at stealth
+            if(OutdoorPvP * pvp = ((Player*)m_target)->GetOutdoorPvP())
+                pvp->HandlePlayerActivityChanged((Player*)m_target);
+        }
 
         // only at real aura add
         if(Real)
@@ -3492,6 +3513,12 @@ void Aura::HandleModStealth(bool apply, bool Real)
                 }
                 else
                     m_target->SetVisibility(VISIBILITY_ON);
+                if(m_target->GetTypeId() == TYPEID_PLAYER)
+                {
+                    if(OutdoorPvP * pvp = ((Player*)m_target)->GetOutdoorPvP())
+                        pvp->HandlePlayerActivityChanged((Player*)m_target);
+                    m_target->SendUpdateToPlayer((Player*)m_target);
+                }
             }
         }
     }
@@ -3524,6 +3551,9 @@ void Aura::HandleInvisibility(bool apply, bool Real)
         {
             // apply glow vision
             m_target->SetFlag(PLAYER_FIELD_BYTES2,PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+            // remove player from the objective's active player count at invisibility
+            if(OutdoorPvP * pvp = ((Player*)m_target)->GetOutdoorPvP())
+                pvp->HandlePlayerActivityChanged((Player*)m_target);
 
             // drop flag at invisible in bg
             if(((Player*)m_target)->InBattleGround())
@@ -3560,6 +3590,13 @@ void Aura::HandleInvisibility(bool apply, bool Real)
                 // if have stealth aura then already have stealth visibility
                 if(!m_target->HasAuraType(SPELL_AURA_MOD_STEALTH))
                     m_target->SetVisibility(VISIBILITY_ON);
+                if(m_target->GetTypeId() == TYPEID_PLAYER)
+                {
+                    if(OutdoorPvP * pvp = ((Player*)m_target)->GetOutdoorPvP())
+                        pvp->HandlePlayerActivityChanged((Player*)m_target);
+
+                    m_target->SendUpdateToPlayer((Player*)m_target);
+                }
             }
         }
     }
@@ -3845,9 +3882,15 @@ void Aura::HandleAuraModIncreaseFlightSpeed(bool apply, bool Real)
     {
         WorldPacket data;
         if(apply)
+        {
+            ((Player*)m_target)->SetCanFly(true);
             data.Initialize(SMSG_MOVE_SET_CAN_FLY, 12);
+        }
         else
+        {
             data.Initialize(SMSG_MOVE_UNSET_CAN_FLY, 12);
+            ((Player*)m_target)->SetCanFly(false);
+        }
         data.append(m_target->GetPackGUID());
         data << uint32(0);                                      // unknown
         m_target->SendMessageToSet(&data, true);
@@ -3973,6 +4016,17 @@ void Aura::HandleModMechanicImmunity(bool apply, bool Real)
             m_target->RemoveAurasDueToSpell(26592);
         }
     }
+
+    // Heroic Fury (remove Intercept cooldown)>>FIX<<
+    if( apply && GetId() == 60970 && m_target->GetTypeId() == TYPEID_PLAYER )
+    {
+        ((Player*)m_target)->RemoveSpellCooldown(20252);
+
+        WorldPacket data(SMSG_CLEAR_COOLDOWN, (4+8));
+        data << uint32(20252);
+        data << uint64(m_target->GetGUID());
+        ((Player*)m_target)->GetSession()->SendPacket(&data);
+    }
 }
 
 void Aura::HandleAuraModEffectImmunity(bool apply, bool Real)
@@ -4012,6 +4066,8 @@ void Aura::HandleAuraModEffectImmunity(bool apply, bool Real)
                     }
                 }
             }
+            else
+                sOutdoorPvPMgr.HandleDropFlag((Player*)m_target,GetSpellProto()->Id);
         }
     }
 
@@ -5411,9 +5467,15 @@ void Aura::HandleAuraAllowFlight(bool apply, bool Real)
     // allow fly
     WorldPacket data;
     if(apply)
+    {
+        ((Player*)m_target)->SetCanFly(true);
         data.Initialize(SMSG_MOVE_SET_CAN_FLY, 12);
+    }
     else
+    {
         data.Initialize(SMSG_MOVE_UNSET_CAN_FLY, 12);
+        ((Player*)m_target)->SetCanFly(false);
+    }
     data.append(m_target->GetPackGUID());
     data << uint32(0);                                      // unk
     m_target->SendMessageToSet(&data, true);
@@ -5958,6 +6020,17 @@ void Aura::PeriodicTick()
                 break;
 
             int32 drain_amount = m_target->GetPower(power) > pdamage ? pdamage : m_target->GetPower(power);
+			
+			//>>FIX<<
+			SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(GetSpellProto()->Id);
+			if(skillLine->second->skillId == SKILL_AFFLICTION || skillLine->second->skillId == SKILL_MARKSMANSHIP)
+			{
+				uint32 drain = m_target->GetMaxPower(power) * drain_amount /100;
+				if(drain > GetCaster()->GetMaxPower(power) * drain_amount / 50)
+					drain_amount = GetCaster()->GetMaxPower(power) * drain_amount / 50;
+				else
+					drain_amount = drain;
+			}
 
             // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
             if (power == POWER_MANA && m_target->GetTypeId() == TYPEID_PLAYER)

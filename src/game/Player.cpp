@@ -52,7 +52,10 @@
 #include "Transports.h"
 #include "Weather.h"
 #include "BattleGround.h"
+#include "BattleGroundAV.h"
 #include "BattleGroundMgr.h"
+#include "OutdoorPvP.h"
+#include "OutdoorPvPMgr.h"
 #include "ArenaTeam.h"
 #include "Chat.h"
 #include "Database/DatabaseImpl.h"
@@ -399,6 +402,18 @@ Player::Player (WorldSession *session): Unit(), m_achievementMgr(this)
     m_rest_bonus=0;
     rest_type=REST_TYPE_NO;
     ////////////////////Rest System/////////////////////
+
+    //movement anticheat
+    m_anti_lastmovetime = 0;   //last movement time
+    m_anti_transportGUID = 0;  //current transport GUID
+    m_anti_NextLenCheck = 0;
+    m_anti_MovedLen = 0.0f;
+    m_anti_BeginFallZ = INVALID_HEIGHT;
+    m_anti_lastalarmtime = 0;    //last time when alarm generated
+    m_anti_alarmcount = 0;       //alarm counter
+    m_anti_TeleTime = 0;
+    m_CanFly=false;
+    /////////////////////////////////
 
     m_mailsLoaded = false;
     m_mailsUpdated = false;
@@ -6329,6 +6344,7 @@ void Player::UpdateArea(uint32 newArea)
 
 void Player::UpdateZone(uint32 newZone)
 {
+    uint32 oldZoneId  = m_zoneUpdateId;
     m_zoneUpdateId    = newZone;
     m_zoneUpdateTimer = ZONE_UPDATE_INTERVAL;
 
@@ -6338,6 +6354,13 @@ void Player::UpdateZone(uint32 newZone)
     AreaTableEntry const* zone = GetAreaEntryByAreaID(newZone);
     if(!zone)
         return;
+
+    // inform outdoor pvp
+    if(oldZoneId != m_zoneUpdateId)
+    {
+        sOutdoorPvPMgr.HandlePlayerLeaveZone(this, oldZoneId);
+        sOutdoorPvPMgr.HandlePlayerEnterZone(this, m_zoneUpdateId);
+    }
 
     if (sWorld.getConfig(CONFIG_WEATHER))
     {
@@ -6473,6 +6496,11 @@ void Player::CheckDuelDistance(time_t currTime)
             DuelComplete(DUEL_FLED);
         }
     }
+}
+
+bool Player::IsOutdoorPvPActive()
+{
+    return (isAlive() && !HasInvisibilityAura() && !HasStealthAura() && (HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP) || sWorld.IsPvPRealm())  && !HasUnitMovementFlag(MOVEMENTFLAG_FLYING2) && !isInFlight());
 }
 
 void Player::DuelComplete(DuelCompleteType type)
@@ -7430,6 +7458,14 @@ void Player::SendLoot(uint64 guid, LootType loot_type)
         if(go->getLootState() == GO_READY)
         {
             uint32 lootid =  go->GetLootId();
+            if((go->GetEntry() == BG_AV_OBJECTID_MINE_N || go->GetEntry() == BG_AV_OBJECTID_MINE_S))
+                if( BattleGround *bg = GetBattleGround())
+                    if(bg->GetTypeID() == BATTLEGROUND_AV)
+                        if(!(((BattleGroundAV*)bg)->PlayerCanDoMineQuest(go->GetEntry(),GetTeam())))
+                        {
+                            SendLootRelease(guid);
+                            return;
+                        }
 
             if(lootid)
             {
@@ -7518,6 +7554,8 @@ void Player::SendLoot(uint64 guid, LootType loot_type)
             bones->lootForBody = true;
             uint32 pLevel = bones->loot.gold;
             bones->loot.clear();
+            if(GetBattleGround()->GetTypeID() == BATTLEGROUND_AV)
+                loot->FillLoot(1, LootTemplates_Creature, this, false);
             // It may need a better formula
             // Now it works like this: lvl10: ~6copper, lvl70: ~9silver
             bones->loot.gold = (uint32)( urand(50, 150) * 0.016f * pow( ((float)pLevel)/5.76f, 2.5f) * sWorld.getRate(RATE_DROP_MONEY) );
@@ -7691,13 +7729,17 @@ void Player::SendUpdateWorldState(uint32 Field, uint32 Value)
     GetSession()->SendPacket(&data);
 }
 
-void Player::SendInitWorldStates()
+void Player::SendInitWorldStates(bool forceZone, uint32 forceZoneId)
 {
     // data depends on zoneid/mapid...
     BattleGround* bg = GetBattleGround();
     uint16 NumberOfFields = 0;
     uint32 mapid = GetMapId();
-    uint32 zoneid = GetZoneId();
+    uint32 zoneid;
+    if(forceZone)
+        zoneid = forceZoneId;
+    else
+        zoneid = GetZoneId();
     uint32 areaid = GetAreaId();
     sLog.outDebug("Sending SMSG_INIT_WORLD_STATES to Map:%u, Zone: %u", mapid, zoneid);
     // may be exist better way to do this...
@@ -7796,82 +7838,149 @@ void Player::SendInitWorldStates()
         case 1537:
         case 2257:
             break;
+        case 139: // EPL
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_EP)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    data << uint32(0x97a) << uint32(0x0); // 10 2426
+                    data << uint32(0x917) << uint32(0x0); // 11 2327
+                    data << uint32(0x918) << uint32(0x0); // 12 2328
+                    data << uint32(0x97b) << uint32(0x32); // 13 2427
+                    data << uint32(0x97c) << uint32(0x32); // 14 2428
+                    data << uint32(0x933) << uint32(0x1); // 15 2355
+                    data << uint32(0x946) << uint32(0x0); // 16 2374
+                    data << uint32(0x947) << uint32(0x0); // 17 2375
+                    data << uint32(0x948) << uint32(0x0); // 18 2376
+                    data << uint32(0x949) << uint32(0x0); // 19 2377
+                    data << uint32(0x94a) << uint32(0x0); // 20 2378
+                    data << uint32(0x94b) << uint32(0x0); // 21 2379
+                    data << uint32(0x932) << uint32(0x0); // 22 2354
+                    data << uint32(0x934) << uint32(0x0); // 23 2356
+                    data << uint32(0x935) << uint32(0x0); // 24 2357
+                    data << uint32(0x936) << uint32(0x0); // 25 2358
+                    data << uint32(0x937) << uint32(0x0); // 26 2359
+                    data << uint32(0x938) << uint32(0x0); // 27 2360
+                    data << uint32(0x939) << uint32(0x1); // 28 2361
+                    data << uint32(0x930) << uint32(0x1); // 29 2352
+                    data << uint32(0x93a) << uint32(0x0); // 30 2362
+                    data << uint32(0x93b) << uint32(0x0); // 31 2363
+                    data << uint32(0x93c) << uint32(0x0); // 32 2364
+                    data << uint32(0x93d) << uint32(0x0); // 33 2365
+                    data << uint32(0x944) << uint32(0x0); // 34 2372
+                    data << uint32(0x945) << uint32(0x0); // 35 2373
+                    data << uint32(0x931) << uint32(0x1); // 36 2353
+                    data << uint32(0x93e) << uint32(0x0); // 37 2366
+                    data << uint32(0x931) << uint32(0x1); // 38 2367 ??  grey horde not in dbc! send for consistency's sake, and to match field count
+                    data << uint32(0x940) << uint32(0x0); // 39 2368
+                    data << uint32(0x941) << uint32(0x0); // 7 2369
+                    data << uint32(0x942) << uint32(0x0); // 8 2370
+                    data << uint32(0x943) << uint32(0x0); // 9 2371
+                }
+            }
+            break;
+        case 1377: // Silithus
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_SI)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    // states are always shown
+                    data << uint32(2313) << uint32(0x0); // 7 ally silityst gathered
+                    data << uint32(2314) << uint32(0x0); // 8 horde silityst gathered
+                    data << uint32(2317) << uint32(0x0); // 9 max silithyst
+                }
+                // dunno about these... aq opening event maybe?
+                data << uint32(2322) << uint32(0x0); // 10 sandworm N
+                data << uint32(2323) << uint32(0x0); // 11 sandworm S
+                data << uint32(2324) << uint32(0x0); // 12 sandworm SW
+                data << uint32(2325) << uint32(0x0); // 13 sandworm E
+            }
+            break;
         case 2597:                                          // AV
-            data << uint32(0x7ae) << uint32(0x1);           // 7
-            data << uint32(0x532) << uint32(0x1);           // 8
-            data << uint32(0x531) << uint32(0x0);           // 9
-            data << uint32(0x52e) << uint32(0x0);           // 10
-            data << uint32(0x571) << uint32(0x0);           // 11
-            data << uint32(0x570) << uint32(0x0);           // 12
-            data << uint32(0x567) << uint32(0x1);           // 13
-            data << uint32(0x566) << uint32(0x1);           // 14
-            data << uint32(0x550) << uint32(0x1);           // 15
-            data << uint32(0x544) << uint32(0x0);           // 16
-            data << uint32(0x536) << uint32(0x0);           // 17
-            data << uint32(0x535) << uint32(0x1);           // 18
-            data << uint32(0x518) << uint32(0x0);           // 19
-            data << uint32(0x517) << uint32(0x0);           // 20
-            data << uint32(0x574) << uint32(0x0);           // 21
-            data << uint32(0x573) << uint32(0x0);           // 22
-            data << uint32(0x572) << uint32(0x0);           // 23
-            data << uint32(0x56f) << uint32(0x0);           // 24
-            data << uint32(0x56e) << uint32(0x0);           // 25
-            data << uint32(0x56d) << uint32(0x0);           // 26
-            data << uint32(0x56c) << uint32(0x0);           // 27
-            data << uint32(0x56b) << uint32(0x0);           // 28
-            data << uint32(0x56a) << uint32(0x1);           // 29
-            data << uint32(0x569) << uint32(0x1);           // 30
-            data << uint32(0x568) << uint32(0x1);           // 13
-            data << uint32(0x565) << uint32(0x0);           // 32
-            data << uint32(0x564) << uint32(0x0);           // 33
-            data << uint32(0x563) << uint32(0x0);           // 34
-            data << uint32(0x562) << uint32(0x0);           // 35
-            data << uint32(0x561) << uint32(0x0);           // 36
-            data << uint32(0x560) << uint32(0x0);           // 37
-            data << uint32(0x55f) << uint32(0x0);           // 38
-            data << uint32(0x55e) << uint32(0x0);           // 39
-            data << uint32(0x55d) << uint32(0x0);           // 40
-            data << uint32(0x3c6) << uint32(0x4);           // 41
-            data << uint32(0x3c4) << uint32(0x6);           // 42
-            data << uint32(0x3c2) << uint32(0x4);           // 43
-            data << uint32(0x516) << uint32(0x1);           // 44
-            data << uint32(0x515) << uint32(0x0);           // 45
-            data << uint32(0x3b6) << uint32(0x6);           // 46
-            data << uint32(0x55c) << uint32(0x0);           // 47
-            data << uint32(0x55b) << uint32(0x0);           // 48
-            data << uint32(0x55a) << uint32(0x0);           // 49
-            data << uint32(0x559) << uint32(0x0);           // 50
-            data << uint32(0x558) << uint32(0x0);           // 51
-            data << uint32(0x557) << uint32(0x0);           // 52
-            data << uint32(0x556) << uint32(0x0);           // 53
-            data << uint32(0x555) << uint32(0x0);           // 54
-            data << uint32(0x554) << uint32(0x1);           // 55
-            data << uint32(0x553) << uint32(0x1);           // 56
-            data << uint32(0x552) << uint32(0x1);           // 57
-            data << uint32(0x551) << uint32(0x1);           // 58
-            data << uint32(0x54f) << uint32(0x0);           // 59
-            data << uint32(0x54e) << uint32(0x0);           // 60
-            data << uint32(0x54d) << uint32(0x1);           // 61
-            data << uint32(0x54c) << uint32(0x0);           // 62
-            data << uint32(0x54b) << uint32(0x0);           // 63
-            data << uint32(0x545) << uint32(0x0);           // 64
-            data << uint32(0x543) << uint32(0x1);           // 65
-            data << uint32(0x542) << uint32(0x0);           // 66
-            data << uint32(0x540) << uint32(0x0);           // 67
-            data << uint32(0x53f) << uint32(0x0);           // 68
-            data << uint32(0x53e) << uint32(0x0);           // 69
-            data << uint32(0x53d) << uint32(0x0);           // 70
-            data << uint32(0x53c) << uint32(0x0);           // 71
-            data << uint32(0x53b) << uint32(0x0);           // 72
-            data << uint32(0x53a) << uint32(0x1);           // 73
-            data << uint32(0x539) << uint32(0x0);           // 74
-            data << uint32(0x538) << uint32(0x0);           // 75
-            data << uint32(0x537) << uint32(0x0);           // 76
-            data << uint32(0x534) << uint32(0x0);           // 77
-            data << uint32(0x533) << uint32(0x0);           // 78
-            data << uint32(0x530) << uint32(0x0);           // 79
-            data << uint32(0x52f) << uint32(0x0);           // 80
-            data << uint32(0x52d) << uint32(0x1);           // 81
+            if (bg && bg->GetTypeID() == BATTLEGROUND_AV)
+                bg->FillInitialWorldStates(data);
+            else
+            {
+                data << uint32(0x7ae) << uint32(0x1);           // 7 snowfall n
+                data << uint32(0x532) << uint32(0x1);           // 8 frostwolfhut hc
+                data << uint32(0x531) << uint32(0x0);           // 9 frostwolfhut ac
+                data << uint32(0x52e) << uint32(0x0);           // 10 stormpike firstaid a_a
+                data << uint32(0x571) << uint32(0x0);           // 11 east frostwolf tower horde assaulted -unused
+                data << uint32(0x570) << uint32(0x0);           // 12 west frostwolf tower horde assaulted - unused
+                data << uint32(0x567) << uint32(0x1);           // 13 frostwolfe c
+                data << uint32(0x566) << uint32(0x1);           // 14 frostwolfw c
+                data << uint32(0x550) << uint32(0x1);           // 15 irondeep (N) ally
+                data << uint32(0x544) << uint32(0x0);           // 16 ice grave a_a
+                data << uint32(0x536) << uint32(0x0);           // 17 stormpike grave h_c
+                data << uint32(0x535) << uint32(0x1);           // 18 stormpike grave a_c
+                data << uint32(0x518) << uint32(0x0);           // 19 stoneheart grave a_a
+                data << uint32(0x517) << uint32(0x0);           // 20 stoneheart grave h_a
+                data << uint32(0x574) << uint32(0x0);           // 21 1396 unk
+                data << uint32(0x573) << uint32(0x0);           // 22 iceblood tower horde assaulted -unused
+                data << uint32(0x572) << uint32(0x0);           // 23 towerpoint horde assaulted - unused
+                data << uint32(0x56f) << uint32(0x0);           // 24 1391 unk
+                data << uint32(0x56e) << uint32(0x0);           // 25 iceblood a
+                data << uint32(0x56d) << uint32(0x0);           // 26 towerp a
+                data << uint32(0x56c) << uint32(0x0);           // 27 frostwolfe a
+                data << uint32(0x56b) << uint32(0x0);           // 28 froswolfw a
+                data << uint32(0x56a) << uint32(0x1);           // 29 1386 unk
+                data << uint32(0x569) << uint32(0x1);           // 30 iceblood c
+                data << uint32(0x568) << uint32(0x1);           // 31 towerp c
+                data << uint32(0x565) << uint32(0x0);           // 32 stoneh tower a
+                data << uint32(0x564) << uint32(0x0);           // 33 icewing tower a
+                data << uint32(0x563) << uint32(0x0);           // 34 dunn a
+                data << uint32(0x562) << uint32(0x0);           // 35 duns a
+                data << uint32(0x561) << uint32(0x0);           // 36 stoneheart bunker alliance assaulted - unused
+                data << uint32(0x560) << uint32(0x0);           // 37 icewing bunker alliance assaulted - unused
+                data << uint32(0x55f) << uint32(0x0);           // 38 dunbaldar south alliance assaulted - unused
+                data << uint32(0x55e) << uint32(0x0);           // 39 dunbaldar north alliance assaulted - unused
+                data << uint32(0x55d) << uint32(0x0);           // 40 stone tower d
+                data << uint32(0x3c6) << uint32(0x0);           // 41 966 unk
+                data << uint32(0x3c4) << uint32(0x0);           // 42 964 unk
+                data << uint32(0x3c2) << uint32(0x0);           // 43 962 unk
+                data << uint32(0x516) << uint32(0x1);           // 44 stoneheart grave a_c
+                data << uint32(0x515) << uint32(0x0);           // 45 stonheart grave h_c
+                data << uint32(0x3b6) << uint32(0x0);           // 46 950 unk
+                data << uint32(0x55c) << uint32(0x0);           // 47 icewing tower d
+                data << uint32(0x55b) << uint32(0x0);           // 48 dunn d
+                data << uint32(0x55a) << uint32(0x0);           // 49 duns d
+                data << uint32(0x559) << uint32(0x0);           // 50 1369 unk
+                data << uint32(0x558) << uint32(0x0);           // 51 iceblood d
+                data << uint32(0x557) << uint32(0x0);           // 52 towerp d
+                data << uint32(0x556) << uint32(0x0);           // 53 frostwolfe d
+                data << uint32(0x555) << uint32(0x0);           // 54 frostwolfw d
+                data << uint32(0x554) << uint32(0x1);           // 55 stoneh tower c
+                data << uint32(0x553) << uint32(0x1);           // 56 icewing tower c
+                data << uint32(0x552) << uint32(0x1);           // 57 dunn c
+                data << uint32(0x551) << uint32(0x1);           // 58 duns c
+                data << uint32(0x54f) << uint32(0x0);           // 59 irondeep (N) horde
+                data << uint32(0x54e) << uint32(0x0);           // 60 irondeep (N) ally
+                data << uint32(0x54d) << uint32(0x1);           // 61 mine (S) neutral
+                data << uint32(0x54c) << uint32(0x0);           // 62 mine (S) horde
+                data << uint32(0x54b) << uint32(0x0);           // 63 mine (S) ally
+                data << uint32(0x545) << uint32(0x0);           // 64 iceblood h_a
+                data << uint32(0x543) << uint32(0x1);           // 65 iceblod h_c
+                data << uint32(0x542) << uint32(0x0);           // 66 iceblood a_c
+                data << uint32(0x540) << uint32(0x0);           // 67 snowfall h_a
+                data << uint32(0x53f) << uint32(0x0);           // 68 snowfall a_a
+                data << uint32(0x53e) << uint32(0x0);           // 69 snowfall h_c
+                data << uint32(0x53d) << uint32(0x0);           // 70 snowfall a_c
+                data << uint32(0x53c) << uint32(0x0);           // 71 frostwolf g h_a
+                data << uint32(0x53b) << uint32(0x0);           // 72 frostwolf g a_a
+                data << uint32(0x53a) << uint32(0x1);           // 73 frostwolf g h_c
+                data << uint32(0x539) << uint32(0x0);           // 74 frostwolf g a_c
+                data << uint32(0x538) << uint32(0x0);           // 75 stormpike grave h_a
+                data << uint32(0x537) << uint32(0x0);           // 76 stormpike grave a_a
+                data << uint32(0x534) << uint32(0x0);           // 77 frostwolf hut h_a
+                data << uint32(0x533) << uint32(0x0);           // 78 frostwolf hut a_a
+                data << uint32(0x530) << uint32(0x0);           // 79 stormpike first aid h_a
+                data << uint32(0x52f) << uint32(0x0);           // 80 stormpike first aid h_c
+                data << uint32(0x52d) << uint32(0x1);           // 81 stormpike first aid a_c
+            }
             break;
         case 3277:                                          // WS
             if (bg && bg->GetTypeID() == BATTLEGROUND_WS)
@@ -7967,77 +8076,150 @@ void Player::SendInitWorldStates()
                 // and some more ... unknown
             }
             break;
+        // any of these needs change! the client remembers the prev setting!
+        // ON EVERY ZONE LEAVE, RESET THE OLD ZONE'S WORLD STATE, BUT AT LEAST THE UI STUFF!
         case 3483:                                          // Hellfire Peninsula
-            data << uint32(0x9ba) << uint32(0x1);           // 10
-            data << uint32(0x9b9) << uint32(0x1);           // 11
-            data << uint32(0x9b5) << uint32(0x0);           // 12
-            data << uint32(0x9b4) << uint32(0x1);           // 13
-            data << uint32(0x9b3) << uint32(0x0);           // 14
-            data << uint32(0x9b2) << uint32(0x0);           // 15
-            data << uint32(0x9b1) << uint32(0x1);           // 16
-            data << uint32(0x9b0) << uint32(0x0);           // 17
-            data << uint32(0x9ae) << uint32(0x0);           // 18 horde pvp objectives captured
-            data << uint32(0x9ac) << uint32(0x0);           // 19
-            data << uint32(0x9a8) << uint32(0x0);           // 20
-            data << uint32(0x9a7) << uint32(0x0);           // 21
-            data << uint32(0x9a6) << uint32(0x1);           // 22
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_HP)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    data << uint32(0x9ba) << uint32(0x1);           // 10 // add ally tower main gui icon       // maybe should be sent only on login?
+                    data << uint32(0x9b9) << uint32(0x1);           // 11 // add horde tower main gui icon      // maybe should be sent only on login?
+                    data << uint32(0x9b5) << uint32(0x0);           // 12 // show neutral broken hill icon      // 2485
+                    data << uint32(0x9b4) << uint32(0x1);           // 13 // show icon above broken hill        // 2484
+                    data << uint32(0x9b3) << uint32(0x0);           // 14 // show ally broken hill icon         // 2483
+                    data << uint32(0x9b2) << uint32(0x0);           // 15 // show neutral overlook icon         // 2482
+                    data << uint32(0x9b1) << uint32(0x1);           // 16 // show the overlook arrow            // 2481
+                    data << uint32(0x9b0) << uint32(0x0);           // 17 // show ally overlook icon            // 2480
+                    data << uint32(0x9ae) << uint32(0x0);           // 18 // horde pvp objectives captured      // 2478
+                    data << uint32(0x9ac) << uint32(0x0);           // 19 // ally pvp objectives captured       // 2476
+                    data << uint32(2475)  << uint32(100); //: ally / horde slider grey area                              // show only in direct vicinity!
+                    data << uint32(2474)  << uint32(50);  //: ally / horde slider percentage, 100 for ally, 0 for horde  // show only in direct vicinity!
+                    data << uint32(2473)  << uint32(0);   //: ally / horde slider display                                // show only in direct vicinity!
+                    data << uint32(0x9a8) << uint32(0x0);           // 20 // show the neutral stadium icon      // 2472
+                    data << uint32(0x9a7) << uint32(0x0);           // 21 // show the ally stadium icon         // 2471
+                    data << uint32(0x9a6) << uint32(0x1);           // 22 // show the horde stadium icon        // 2470
+                }
+            }
+            break;
+        case 3518:
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_NA)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    data << uint32(2503) << uint32(0x0);    // 10
+                    data << uint32(2502) << uint32(0x0);    // 11
+                    data << uint32(2493) << uint32(0x0);    // 12
+                    data << uint32(2491) << uint32(0x0);    // 13
+
+                    data << uint32(2495) << uint32(0x0);    // 14
+                    data << uint32(2494) << uint32(0x0);    // 15
+                    data << uint32(2497) << uint32(0x0);    // 16
+
+                    data << uint32(2762) << uint32(0x0);    // 17
+                    data << uint32(2662) << uint32(0x0);    // 18
+                    data << uint32(2663) << uint32(0x0);    // 19
+                    data << uint32(2664) << uint32(0x0);    // 20
+
+                    data << uint32(2760) << uint32(0x0);    // 21
+                    data << uint32(2670) << uint32(0x0);    // 22
+                    data << uint32(2668) << uint32(0x0);    // 23
+                    data << uint32(2669) << uint32(0x0);    // 24
+
+                    data << uint32(2761) << uint32(0x0);    // 25
+                    data << uint32(2667) << uint32(0x0);    // 26
+                    data << uint32(2665) << uint32(0x0);    // 27
+                    data << uint32(2666) << uint32(0x0);    // 28
+
+                    data << uint32(2763) << uint32(0x0);    // 29
+                    data << uint32(2659) << uint32(0x0);    // 30
+                    data << uint32(2660) << uint32(0x0);    // 31
+                    data << uint32(2661) << uint32(0x0);    // 32
+
+                    data << uint32(2671) << uint32(0x0);    // 33
+                    data << uint32(2676) << uint32(0x0);    // 34
+                    data << uint32(2677) << uint32(0x0);    // 35
+                    data << uint32(2672) << uint32(0x0);    // 36
+                    data << uint32(2673) << uint32(0x0);    // 37
+                }
+            }
             break;
         case 3519:                                          // Terokkar Forest
-            data << uint32(0xa41) << uint32(0x0);           // 10
-            data << uint32(0xa40) << uint32(0x14);          // 11
-            data << uint32(0xa3f) << uint32(0x0);           // 12
-            data << uint32(0xa3e) << uint32(0x0);           // 13
-            data << uint32(0xa3d) << uint32(0x5);           // 14
-            data << uint32(0xa3c) << uint32(0x0);           // 15
-            data << uint32(0xa87) << uint32(0x0);           // 16
-            data << uint32(0xa86) << uint32(0x0);           // 17
-            data << uint32(0xa85) << uint32(0x0);           // 18
-            data << uint32(0xa84) << uint32(0x0);           // 19
-            data << uint32(0xa83) << uint32(0x0);           // 20
-            data << uint32(0xa82) << uint32(0x0);           // 21
-            data << uint32(0xa81) << uint32(0x0);           // 22
-            data << uint32(0xa80) << uint32(0x0);           // 23
-            data << uint32(0xa7e) << uint32(0x0);           // 24
-            data << uint32(0xa7d) << uint32(0x0);           // 25
-            data << uint32(0xa7c) << uint32(0x0);           // 26
-            data << uint32(0xa7b) << uint32(0x0);           // 27
-            data << uint32(0xa7a) << uint32(0x0);           // 28
-            data << uint32(0xa79) << uint32(0x0);           // 29
-            data << uint32(0x9d0) << uint32(0x5);           // 30
-            data << uint32(0x9ce) << uint32(0x0);           // 31
-            data << uint32(0x9cd) << uint32(0x0);           // 32
-            data << uint32(0x9cc) << uint32(0x0);           // 33
-            data << uint32(0xa88) << uint32(0x0);           // 34
-            data << uint32(0xad0) << uint32(0x0);           // 35
-            data << uint32(0xacf) << uint32(0x1);           // 36
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_TF)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    data << uint32(0xa41) << uint32(0x0);           // 10 // 2625 capture bar pos
+                    data << uint32(0xa40) << uint32(0x14);          // 11 // 2624 capture bar neutral
+                    data << uint32(0xa3f) << uint32(0x0);           // 12 // 2623 show capture bar
+                    data << uint32(0xa3e) << uint32(0x0);           // 13 // 2622 horde towers controlled
+                    data << uint32(0xa3d) << uint32(0x5);           // 14 // 2621 ally towers controlled
+                    data << uint32(0xa3c) << uint32(0x0);           // 15 // 2620 show towers controlled
+                    data << uint32(0xa88) << uint32(0x0);           // 16 // 2696 SE Neu
+                    data << uint32(0xa87) << uint32(0x0);           // 17 // SE Horde
+                    data << uint32(0xa86) << uint32(0x0);           // 18 // SE Ally
+                    data << uint32(0xa85) << uint32(0x0);           // 19 //S Neu
+                    data << uint32(0xa84) << uint32(0x0);           // 20 S Horde
+                    data << uint32(0xa83) << uint32(0x0);           // 21 S Ally
+                    data << uint32(0xa82) << uint32(0x0);           // 22 NE Neu
+                    data << uint32(0xa81) << uint32(0x0);           // 23 NE Horde
+                    data << uint32(0xa80) << uint32(0x0);           // 24 NE Ally
+                    data << uint32(0xa7e) << uint32(0x0);           // 25 // 2686 N Neu
+                    data << uint32(0xa7d) << uint32(0x0);           // 26 N Horde
+                    data << uint32(0xa7c) << uint32(0x0);           // 27 N Ally
+                    data << uint32(0xa7b) << uint32(0x0);           // 28 NW Ally
+                    data << uint32(0xa7a) << uint32(0x0);           // 29 NW Horde
+                    data << uint32(0xa79) << uint32(0x0);           // 30 NW Neutral
+                    data << uint32(0x9d0) << uint32(0x5);           // 31 // 2512 locked time remaining seconds first digit
+                    data << uint32(0x9ce) << uint32(0x0);           // 32 // 2510 locked time remaining seconds second digit
+                    data << uint32(0x9cd) << uint32(0x0);           // 33 // 2509 locked time remaining minutes
+                    data << uint32(0x9cc) << uint32(0x0);           // 34 // 2508 neutral locked time show
+                    data << uint32(0xad0) << uint32(0x0);           // 35 // 2768 horde locked time show
+                    data << uint32(0xacf) << uint32(0x1);           // 36 // 2767 ally locked time show
+                }
+            }
             break;
         case 3521:                                          // Zangarmarsh
-            data << uint32(0x9e1) << uint32(0x0);           // 10
-            data << uint32(0x9e0) << uint32(0x0);           // 11
-            data << uint32(0x9df) << uint32(0x0);           // 12
-            data << uint32(0xa5d) << uint32(0x1);           // 13
-            data << uint32(0xa5c) << uint32(0x0);           // 14
-            data << uint32(0xa5b) << uint32(0x1);           // 15
-            data << uint32(0xa5a) << uint32(0x0);           // 16
-            data << uint32(0xa59) << uint32(0x1);           // 17
-            data << uint32(0xa58) << uint32(0x0);           // 18
-            data << uint32(0xa57) << uint32(0x0);           // 19
-            data << uint32(0xa56) << uint32(0x0);           // 20
-            data << uint32(0xa55) << uint32(0x1);           // 21
-            data << uint32(0xa54) << uint32(0x0);           // 22
-            data << uint32(0x9e7) << uint32(0x0);           // 23
-            data << uint32(0x9e6) << uint32(0x0);           // 24
-            data << uint32(0x9e5) << uint32(0x0);           // 25
-            data << uint32(0xa00) << uint32(0x0);           // 26
-            data << uint32(0x9ff) << uint32(0x1);           // 27
-            data << uint32(0x9fe) << uint32(0x0);           // 28
-            data << uint32(0x9fd) << uint32(0x0);           // 29
-            data << uint32(0x9fc) << uint32(0x1);           // 30
-            data << uint32(0x9fb) << uint32(0x0);           // 31
-            data << uint32(0xa62) << uint32(0x0);           // 32
-            data << uint32(0xa61) << uint32(0x1);           // 33
-            data << uint32(0xa60) << uint32(0x1);           // 34
-            data << uint32(0xa5f) << uint32(0x0);           // 35
+            {
+                OutdoorPvP * pvp = this->GetOutdoorPvP();
+                if(pvp && pvp->GetTypeId() == OUTDOOR_PVP_ZM)
+                    pvp->FillInitialWorldStates(data);
+                else
+                {
+                    data << uint32(0x9e1) << uint32(0x0);           // 10 //2529
+                    data << uint32(0x9e0) << uint32(0x0);           // 11
+                    data << uint32(0x9df) << uint32(0x0);           // 12
+                    data << uint32(0xa5d) << uint32(0x1);           // 13 //2653
+                    data << uint32(0xa5c) << uint32(0x0);           // 14 //2652 east beacon neutral
+                    data << uint32(0xa5b) << uint32(0x1);           // 15 horde
+                    data << uint32(0xa5a) << uint32(0x0);           // 16 ally
+                    data << uint32(0xa59) << uint32(0x1);           // 17 // 2649 Twin spire graveyard horde  12???
+                    data << uint32(0xa58) << uint32(0x0);           // 18 ally     14 ???
+                    data << uint32(0xa57) << uint32(0x0);           // 19 neutral  7???
+                    data << uint32(0xa56) << uint32(0x0);           // 20 // 2646 west beacon neutral
+                    data << uint32(0xa55) << uint32(0x1);           // 21 horde
+                    data << uint32(0xa54) << uint32(0x0);           // 22 ally
+                    data << uint32(0x9e7) << uint32(0x0);           // 23 // 2535
+                    data << uint32(0x9e6) << uint32(0x0);           // 24
+                    data << uint32(0x9e5) << uint32(0x0);           // 25
+                    data << uint32(0xa00) << uint32(0x0);           // 26 // 2560
+                    data << uint32(0x9ff) << uint32(0x1);           // 27
+                    data << uint32(0x9fe) << uint32(0x0);           // 28
+                    data << uint32(0x9fd) << uint32(0x0);           // 29
+                    data << uint32(0x9fc) << uint32(0x1);           // 30
+                    data << uint32(0x9fb) << uint32(0x0);           // 31
+                    data << uint32(0xa62) << uint32(0x0);           // 32 // 2658
+                    data << uint32(0xa61) << uint32(0x1);           // 33
+                    data << uint32(0xa60) << uint32(0x1);           // 34
+                    data << uint32(0xa5f) << uint32(0x0);           // 35
+                }
+            }
             break;
         case 3698:                                          // Nagrand Arena
             if (bg && bg->GetTypeID() == BATTLEGROUND_NA)
@@ -13820,7 +14002,8 @@ bool Player::HasQuestForItem( uint32 itemid ) const
 
             // hide quest if player is in raid-group and quest is no raid quest
             if(GetGroup() && GetGroup()->isRaidGroup() && qinfo->GetType() != QUEST_TYPE_RAID)
-                continue;
+                if(!InBattleGround()) //there are two ways.. we can make every bg-quest a raidquest, or add this code here.. i don't know if this can be exploited by other quests, but i think all other quests depend on a specific area.. but keep this in mind, if something strange happens later
+                    continue;
 
             // There should be no mixed ReqItem/ReqSource drop
             // This part for ReqItem drop
@@ -18869,6 +19052,11 @@ void Player::AutoUnequipOffhandIfNeed()
         std::string subject = GetSession()->GetMangosString(LANG_NOT_EQUIPPED_ITEM);
         WorldSession::SendMailTo(this, MAIL_NORMAL, MAIL_STATIONERY_GM, GetGUIDLow(), GetGUIDLow(), subject, 0, &mi, 0, 0, MAIL_CHECK_MASK_NONE);
     }
+}
+
+OutdoorPvP * Player::GetOutdoorPvP() const
+{
+    return sOutdoorPvPMgr.GetOutdoorPvPToZoneId(GetZoneId());
 }
 
 bool Player::HasItemFitToSpellReqirements(SpellEntry const* spellInfo, Item const* ignoreItem)

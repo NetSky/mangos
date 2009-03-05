@@ -55,7 +55,8 @@ enum Gossip_Option
     GOSSIP_OPTION_STABLEPET         = 14,                   //UNIT_NPC_FLAG_STABLE            = 8192,
     GOSSIP_OPTION_ARMORER           = 15,                   //UNIT_NPC_FLAG_ARMORER           = 16384,
     GOSSIP_OPTION_UNLEARNTALENTS    = 16,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
-    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17                    //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_OUTDOORPVP        = 18                    //UNIT_NPC_FLAG_OUTDOORPVP (option for outdoor pvp creatures)
 };
 
 enum Gossip_Guard
@@ -609,11 +610,22 @@ class MANGOS_DLL_SPEC Creature : public Unit
 
         uint32 GetGlobalCooldown() const { return m_GlobalCooldown; }
 
+       void SetDeleteAfterNoAggro(bool set) {
+           if(set && !m_attacking) //if creature not in fight, delete it now..
+           {
+               CleanupsBeforeDelete();
+               AddObjectToRemoveList();
+           }
+           else if(set)
+               m_deleteAfterNoAggro=set;
+       }
+       bool GetDeleteAfterNoAggro() { return m_deleteAfterNoAggro; }
         void SetDeadByDefault (bool death_state) { m_isDeadByDefault = death_state; }
 
         bool isActiveObject() const { return m_isActiveObject; }
         void SetActiveObjectState(bool on);
 
+       void SetDBTableGuid(uint32 id) { m_DBTableGuid = id; }
     protected:
         bool CreateFromProto(uint32 guidlow,uint32 Entry,uint32 team, const CreatureData *data = NULL);
         bool InitEntry(uint32 entry, uint32 team=ALLIANCE, const CreatureData* data=NULL);
@@ -661,6 +673,9 @@ class MANGOS_DLL_SPEC Creature : public Unit
         float CombatStartX;
         float CombatStartY;
         float CombatStartZ;
+
+        bool m_deleteAfterNoAggro;
+
     private:
         GridReference<Creature> m_gridRef;
         CreatureInfo const* m_creatureInfo;                 // in heroic mode can different from ObjMgr::GetCreatureTemplate(GetEntry())

@@ -1237,6 +1237,10 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
             // Combustion and Fire Protection Aura (multi-family check)
             if( spellInfo_1->Id == 11129 && spellInfo_2->SpellIconID == 33 && spellInfo_2->SpellVisual[0] == 321 )
                 return false;
+			//>>FIX<<
+            if( spellInfo_1->EffectSpellClassMaskC[0] == 262144 && spellInfo_2->EffectSpellClassMaskC[0] == 262144)
+                return false;
+
 
             break;
         case SPELLFAMILY_WARLOCK:
@@ -2272,6 +2276,46 @@ void SpellMgr::LoadPetLevelupSpellMap()
     sLog.outString();
     sLog.outString( ">> Loaded %u pet levelup spells", count );
 }
+
+
+void SpellMgr::LoadWarlockPetLevelupSpellMap()
+{
+	uint32 count = 0;
+    QueryResult *result = WorldDatabase.PQuery("SELECT pet_family, level, spellid FROM pet_level_spell");    
+
+    if(!result)
+	{
+		sLog.outError( " Loaded 0 Warlock Pet Spells, Table pet_level_spell not exist/no data/wrong structure.");
+	}
+	else
+	{
+		 uint32 cr_family = 0;
+		 uint32 need_level = 0;
+		 uint32 spellid = 0;
+    
+	do
+    {
+        Field *fields = result->Fetch();
+        
+		cr_family = fields[0].GetUInt32();
+        need_level = fields[1].GetUInt32();
+        spellid = fields[2].GetUInt32();
+        
+		mWarlockPetLevelupSpellMap[cr_family][need_level] = spellid;
+        count++;
+	}
+    while( result->NextRow() );
+    
+	delete result;
+   
+    
+	sLog.outString( ">> Loaded %u warlock pet levelup spells ", count);
+    sLog.outString();
+	
+	}
+  	
+}
+
 
 /// Some checks for spells, to prevent adding deprecated/broken spells for trainers, spell book, etc
 bool SpellMgr::IsSpellValid(SpellEntry const* spellInfo, Player* pl, bool msg)
