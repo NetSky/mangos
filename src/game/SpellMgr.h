@@ -1078,7 +1078,6 @@ class SpellMgr
         SpellAreaForQuestMap mSpellAreaForQuestEndMap;
         SpellAreaForAuraMap  mSpellAreaForAuraMap;
         SpellAreaForAreaMap  mSpellAreaForAreaMap;
-        PetLevelupSpellMap mPetLevelupSpellMap;
 };
 
 #define spellmgr SpellMgr::Instance()

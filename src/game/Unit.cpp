@@ -5084,10 +5084,14 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
                 if(triggeredByAura->GetCasterGUID() != pVictim->GetGUID())
                     return false;
 
-                // energize amount
-                basepoints0 = triggerAmount*damage/100;
-                pVictim->CastCustomSpell(pVictim,34919,&basepoints0,NULL,NULL,true,castItem,triggeredByAura);
-                return true;                                // no hidden cooldown
+                // energize amount >>FIX<<
+                if(pVictim->GetPower(POWER_MANA))
+                {
+	                basepoints0 = pVictim->GetMaxPower(POWER_MANA)*25/10000;
+		            pVictim->CastCustomSpell(pVictim,34919,&basepoints0,NULL,NULL,true,castItem,triggeredByAura);
+			        return true;                                // no hidden cooldown
+                }
+                                // no hidden cooldown
             }
             // Divine Aegis
             if (dummySpell->SpellIconID == 2820)
@@ -5564,7 +5568,18 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
 
                     break;
                 }
-                // Glyph of Divinity
+				// Glyph of Spiritual Attunement
+				case 54924:
+				{
+				// if healed by another unit (pVictim)
+				if(this == pVictim)
+					return false;
+				target = this;
+				triggered_spell_id = 55111;
+				basepoints0 = triggerAmount*damage/100;
+				break;
+				}
+				// Glyph of Divinity
                 case 54939:
                 {
                     // Lookup base amount mana restore
@@ -5587,10 +5602,10 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
                 // Glyph of Holy Light
                 case 54937:
                 {
-					if( procSpell->SpellFamilyFlags & 0x00000000C0000000LL)
-						return false; 
                     triggered_spell_id = 54968;
                     basepoints0 = triggerAmount*damage/100;
+					if( procSpell->SpellFamilyFlags & 0x00000000C0000000LL)
+						basepoints0 = damage;
                     break;
                 }
             }
