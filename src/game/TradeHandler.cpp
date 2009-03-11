@@ -534,11 +534,11 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if(pOther->GetTeam() !=_player->GetTeam() )
+    /*if(pOther->GetTeam() !=_player->GetTeam() )
     {
         SendTradeStatus(TRADE_STATUS_WRONG_FACTION);
         return;
-    }
+    }*/
 
     if( pOther->GetDistance2d( _player ) > 10.0f )
     {

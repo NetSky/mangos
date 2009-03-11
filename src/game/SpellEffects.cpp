@@ -1566,14 +1566,14 @@ void Spell::EffectDummy(uint32 i)
 
             switch(m_spellInfo->Id)
             {
-                // Judgement of Righteousness (0.2*$AP+0.32*$SPH) holy added in spellDamagBonus
+                /* Judgement of Righteousness (0.2*$AP+0.32*$SPH) holy added in spellDamagBonus
                 case 20187:
                 {
                     if (!unitTarget)
                         return;
                     m_damage+=int32(0.2f*m_caster->GetTotalAttackPowerValue(BASE_ATTACK));
                     return;
-                }
+                }*/
                 case 31789:                                 // Righteous Defense (step 1)
                 {
                     // 31989 -> dummy effect (step 1) + dummy effect (step 2) -> 31709 (taunt like spell for each target)
@@ -1740,7 +1740,33 @@ void Spell::EffectDummy(uint32 i)
                 return;
             }
             break;
-    }
+	        case SPELLFAMILY_DEATHKNIGHT:
+            // Death Coil
+            if(m_spellInfo->SpellFamilyFlags & 0x002000LL)
+            {
+                uint32 spell_id = NULL;
+                int32 bp = 0;
+                damage += m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.15f;
+                if(m_caster->IsFriendlyTo(unitTarget))
+                {
+                    if(unitTarget->GetCreatureType() != CREATURE_TYPE_UNDEAD)
+                        return;
+
+                    spell_id = 47633;
+                    bp = damage * 1.5f;
+                }
+                else
+                {
+                    spell_id = 47632;
+                    bp = damage;
+                }               
+                
+                m_caster->CastCustomSpell(unitTarget,spell_id,&bp,NULL,NULL,true);
+                return;
+            }
+
+            break;
+	    }
 
     // pet auras
     if(PetAura const* petSpell = spellmgr.GetPetAura(m_spellInfo->Id))
@@ -2377,9 +2403,17 @@ void Spell::EffectPowerBurn(uint32 i)
 
     int32 curPower = int32(unitTarget->GetPower(powertype));
 
-    // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
     uint32 power = damage;
-    if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
+    //hacky maybe wacky
+	SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(m_spellInfo->Id);
+	if(skillLine->second->skillId == SKILL_DISCIPLINE)
+	{
+		power = unitTarget->GetMaxPower(powertype) * damage /100;
+		if(power > GetCaster()->GetMaxPower(powertype) * damage / 50)
+			power = GetCaster()->GetMaxPower(powertype) * damage / 50;
+	}
+	// resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
+	if ( powertype == POWER_MANA && unitTarget->GetTypeId() == TYPEID_PLAYER )
         power -= ((Player*)unitTarget)->GetSpellCritDamageReduction(power);
 
     int32 new_damage = (curPower < power) ? curPower : power;
@@ -2743,6 +2777,15 @@ void Spell::EffectEnergize(uint32 i)
             break;
         default:
             break;
+    }
+    // Judgement of Wisdom custom case
+    if(m_spellInfo->Id == 20268)
+    {
+        if(unitTarget->GetTypeId() == TYPEID_PLAYER)
+        {
+        uint32 basemana = ((Player*)unitTarget)->GetCreateMana();
+        damage *= basemana / 100;
+        }
     }
 
     if (level_diff > 0)
@@ -4317,7 +4360,7 @@ void Spell::EffectWeaponDmg(uint32 i)
     }
 
     // some spell specific modifiers
-    bool customBonusDamagePercentMod = false;
+    //hack bool customBonusDamagePercentMod = false;
     bool spellBonusNeedWeaponDamagePercentMod = false;      // if set applied weapon damage percent mode to spell bonus
 
     float bonusDamagePercentMod  = 1.0f;                    // applied to fixed effect damage bonus if set customBonusDamagePercentMod
@@ -4360,14 +4403,14 @@ void Spell::EffectWeaponDmg(uint32 i)
         }
         case SPELLFAMILY_ROGUE:
         {
-            // Ambush
+            /* hack Ambush
             if(m_spellInfo->SpellFamilyFlags & 0x00000200LL)
             {
                 customBonusDamagePercentMod = true;
                 bonusDamagePercentMod = 2.5f;               // 250%
-            }
+            }*/
             // Mutilate (for each hand)
-            else if(m_spellInfo->SpellFamilyFlags & 0x600000000LL)
+            if(m_spellInfo->SpellFamilyFlags & 0x600000000LL)
             {
                 bool found = false;
                 // fast check
@@ -4440,10 +4483,10 @@ void Spell::EffectWeaponDmg(uint32 i)
                 weaponDamagePercentMod *= float(CalculateDamage(j,unitTarget)) / 100.0f;
 
                 // applied only to prev.effects fixed damage
-                if(customBonusDamagePercentMod)
+                /*hack if(customBonusDamagePercentMod)
                     fixed_bonus = int32(fixed_bonus*bonusDamagePercentMod);
-                else
-                    fixed_bonus = int32(fixed_bonus*weaponDamagePercentMod);
+                else*/
+                fixed_bonus = int32(fixed_bonus*weaponDamagePercentMod);
                 break;
             default:
                 break;                                      // not weapon damage effect, just skip

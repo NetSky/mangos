@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2668,6 +2668,27 @@ void Spell::finish(bool ok)
     if (m_caster->GetTypeId() == TYPEID_PLAYER)
         ((Player*)m_caster)->RemoveSpellMods(this);
 
+	 //holy nova heal
+    if(m_spellInfo->SpellFamilyName == SPELLFAMILY_PRIEST && m_spellInfo->SpellIconID == 1874)
+    {
+        int holy_nova_heal = 0;
+        switch(m_spellInfo->Id)
+        {
+            case 15237: holy_nova_heal = 23455; break;
+            case 15430: holy_nova_heal = 23458; break;
+            case 15431: holy_nova_heal = 23459; break;
+            case 27799: holy_nova_heal = 27803; break;
+            case 27804: holy_nova_heal = 27800; break;
+            case 27801: holy_nova_heal = 27805; break;
+            case 25331: holy_nova_heal = 25329; break;
+            case 48077: holy_nova_heal = 48075; break;
+            case 48078: holy_nova_heal = 48076; break;
+            default:break;
+        }
+        if(holy_nova_heal)
+            m_caster->CastSpell(m_caster, holy_nova_heal, true);
+    }
+
     // handle SPELL_AURA_ADD_TARGET_TRIGGER auras
     Unit::AuraList const& targetTriggers = m_caster->GetAurasByType(SPELL_AURA_ADD_TARGET_TRIGGER);
     for(Unit::AuraList::const_iterator i = targetTriggers.begin(); i != targetTriggers.end(); ++i)
@@ -4579,6 +4600,18 @@ uint8 Spell::CheckCasterAuras() const
         prevented_reason = SPELL_FAILED_SILENCED;
     else if(unitflag & UNIT_FLAG_PACIFIED && m_spellInfo->PreventionType==SPELL_PREVENTION_TYPE_PACIFY)
         prevented_reason = SPELL_FAILED_PACIFIED;
+	else if(m_caster->HasAuraType(SPELL_AURA_ALLOW_ONLY_ABILITY))
+	{
+		Unit::AuraList const& casingLimit = m_caster->GetAurasByType(SPELL_AURA_ALLOW_ONLY_ABILITY);
+		for(Unit::AuraList::const_iterator itr = casingLimit.begin(); itr != casingLimit.end(); ++itr)
+		{
+			if(m_spellInfo->SpellFamilyFlags != (uint64)(*itr)->getAuraSpellClassMask())
+			{
+				prevented_reason = SPELL_FAILED_CASTER_AURASTATE;
+				break;
+			}
+		}
+	}
 
     // Attr must make flag drop spell totally immune from all effects
     if(prevented_reason)

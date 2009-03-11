@@ -313,7 +313,7 @@ pAuraHandler AuraHandler[TOTAL_AURAS]=
     &Aura::HandleNoImmediateEffect,                         //260 SPELL_AURA_SCREEN_EFFECT (miscvalue = id in ScreenEffect.dbc) not required any code
     &Aura::HandlePhase,                                     //261 SPELL_AURA_PHASE undetactable invisibility?     implemented in Unit::isVisibleForOrDetect
     &Aura::HandleNULL,                                      //262
-    &Aura::HandleNULL,                                      //263 SPELL_AURA_ALLOW_ONLY_ABILITY player can use only abilities set in SpellClassMask
+    &Aura::HandleAllowOnlyAbility,                          //263 SPELL_AURA_ALLOW_ONLY_ABILITY player can use only abilities set in SpellClassMask
     &Aura::HandleUnused,                                    //264 unused (3.0.8a)
     &Aura::HandleUnused,                                    //265 unused (3.0.8a)
     &Aura::HandleUnused,                                    //266 unused (3.0.8a)
@@ -2159,8 +2159,24 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 caster->InterruptSpell(CURRENT_CHANNELED_SPELL);
                 return;
             }
-
+ 
+		}
+        // Living Bomb
+        if(m_spellProto->SpellIconID == 3000 && m_spellProto->SpellFamilyName == SPELLFAMILY_MAGE && (m_removeMode == AURA_REMOVE_BY_DISPEL || m_removeMode == AURA_REMOVE_BY_DEFAULT))
+        {
+            uint32 spell_id;
+            
+            switch(GetId())
+            {
+                case 44457: spell_id = 44461; break;
+                case 55359: spell_id = 55361; break;
+                case 55360: spell_id = 55362; break;
+            }
+            if(spell_id)
+                caster->CastSpell(m_target, spell_id, false, 0, 0, caster->GetGUID());
+            return;
         }
+
     }
 
     // AT APPLY & REMOVE
@@ -2316,6 +2332,22 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 ((Player*)m_target)->AddSpellMod(m_spellmod, apply);
                 return;
             }
+            //Druid, Survival Instincts
+            if(GetSpellProto()->SpellIconID == 3707 && GetSpellProto()->SpellVisual[0] == 2758)
+            {
+                if(!m_target)
+                    return;
+
+                if(apply)
+                {
+                   int32 bp0 = int32(m_target->GetMaxHealth() * m_modifier.m_amount / 100);
+                   m_target->CastCustomSpell(m_target, 50322, &bp0, NULL, NULL, true);
+                }
+                else if(!apply && m_removeMode != AURA_REMOVE_BY_DEFAULT)
+                  m_target-> RemoveAurasDueToSpell(50322);
+                return;
+            }
+
             break;
         }
         case SPELLFAMILY_HUNTER:
@@ -3254,6 +3286,23 @@ void Aura::HandleModFear(bool apply, bool Real)
         return;
 
     m_target->SetFeared(apply, GetCasterGUID(), GetId());
+
+	if(!apply && m_spellProto->SpellFamilyName == SPELLFAMILY_WARLOCK)
+    {
+	    Unit* caster = GetCaster();
+		int32 spell_id = 0;
+		if(!caster || caster->GetTypeId() != TYPEID_PLAYER)
+			return;
+		else
+		{
+			if(caster->HasAura(53754, 0))
+			spell_id = 60946;
+			else if(caster->HasAura(53759, 0))
+				spell_id = 60947;
+		}
+		if(spell_id)
+			m_target->CastSpell(m_target, spell_id, false);
+	}
 }
 
 void Aura::HandleFeignDeath(bool apply, bool Real)
@@ -4722,7 +4771,8 @@ void Aura::HandleAuraModIncreaseHealth(bool apply, bool Real)
         case 28726:                                         // Nightmare Seed ( Nightmare Seed )
         case 34511:                                         // Valor (Bulwark of Kings, Bulwark of the Ancient Kings)
         case 44055:                                         // Tremendous Fortitude (Battlemaster's Alacrity)
-        {
+        case 50322:                                         // Druid Survival Instincts
+		{
             if(Real)
             {
                 if(apply)
@@ -5991,7 +6041,19 @@ void Aura::PeriodicTick()
 
             int32 drain_amount = m_target->GetPower(power) > pdamage ? pdamage : m_target->GetPower(power);
 
-            // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
+			SkillLineAbilityMap::const_iterator const skillLine = spellmgr.GetBeginSkillLineAbilityMap(GetSpellProto()->Id);
+			
+			//maybe 2hacky
+			if(skillLine->second->skillId == SKILL_AFFLICTION || skillLine->second->skillId == SKILL_MARKSMANSHIP)
+			{
+				uint32 drain = m_target->GetMaxPower(power) * drain_amount /100;
+				if(drain > GetCaster()->GetMaxPower(power) * drain_amount / 50)
+					drain_amount = GetCaster()->GetMaxPower(power) * drain_amount / 50;
+				else
+					drain_amount = drain;
+			}
+
+			// resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
             if (power == POWER_MANA && m_target->GetTypeId() == TYPEID_PLAYER)
                 drain_amount -= ((Player*)m_target)->GetSpellCritDamageReduction(drain_amount);
 
@@ -6744,3 +6806,23 @@ void Aura::HandlePhase(bool apply, bool Real)
         m_target->SetVisibility(m_target->GetVisibility());
 }
 
+void Aura::HandleAllowOnlyAbility(bool apply, bool Real)
+{
+	if(!Real)
+	return;
+	if(apply)
+	{
+		m_target->setAttackTimer(BASE_ATTACK,m_duration);
+		m_target->setAttackTimer(RANGED_ATTACK,m_duration);
+		m_target->setAttackTimer(OFF_ATTACK,m_duration);
+	}
+	else
+	{
+		m_target->resetAttackTimer(BASE_ATTACK);
+		m_target->resetAttackTimer(RANGED_ATTACK);
+		m_target->resetAttackTimer(OFF_ATTACK);
+	}
+	m_target->UpdateDamagePhysical(BASE_ATTACK);
+	m_target->UpdateDamagePhysical(RANGED_ATTACK);
+	m_target->UpdateDamagePhysical(OFF_ATTACK);
+}
