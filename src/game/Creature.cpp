@@ -1457,8 +1457,11 @@ void Creature::setDeathState(DeathState s)
         if (canFly() && FallGround())
             return;
 
-        if(!IsStopped())
+        if(!IsStopped() || IsInEvadeMode())
+        {
+            GetMotionMaster()->MovementExpired(true);
             StopMoving();
+        }
     }
     Unit::setDeathState(s);
 
