@@ -3778,6 +3778,40 @@ SpellCastResult Spell::CheckCast(bool strict)
 
     if(Unit *target = m_targets.getUnitTarget())
     {
+		// NetSky : check for somme quest items to prevent exploits like "God-Mode", Enslaving other Players as Pet, Stucking Players at place // has to be hardcoded because dbcs for spell do not provide allowed spell target
+		switch(m_spellInfo->Id)
+		{
+			case 47394:
+				if(target->GetTypeId()!=TYPEID_PLAYER)
+				{
+					if(target->GetEntry()!=26261)
+						return SPELL_FAILED_BAD_TARGETS;
+				}
+				if(target->GetTypeId()==TYPEID_PLAYER || m_caster->GetGUID()==target->GetGUID())
+				{
+					return SPELL_FAILED_BAD_TARGETS;
+				}
+				break;
+			case 53102:
+				if(target->GetTypeId()!=TYPEID_PLAYER)
+				{
+					if(target->GetEntry()!=28931)
+						return SPELL_FAILED_BAD_TARGETS;
+				}
+				if(target->GetTypeId()==TYPEID_PLAYER || m_caster->GetGUID()==target->GetGUID())
+				{
+					return SPELL_FAILED_BAD_TARGETS;
+				}
+				break;
+			case 23301:
+				if(target->GetTypeId()==TYPEID_PLAYER || m_caster->GetGUID()==target->GetGUID())
+					return SPELL_FAILED_BAD_TARGETS;
+				break;
+			default:
+				break;
+		}
+		//NetSky
+		
         // target state requirements (not allowed state), apply to self also
         if(m_spellInfo->TargetAuraStateNot && target->HasAuraState(AuraState(m_spellInfo->TargetAuraStateNot)))
             return SPELL_FAILED_TARGET_AURASTATE;
