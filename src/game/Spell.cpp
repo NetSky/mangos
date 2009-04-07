@@ -3709,7 +3709,19 @@ SpellCastResult Spell::CheckCast(bool strict)
         else
             return SPELL_FAILED_NOT_READY;
     }
-
+	// NetSky : prevent using sprint in other forms than cat-form
+	if(m_caster->GetTypeId()==TYPEID_PLAYER && ((Player*)m_caster)->getClass()==CLASS_DRUID)
+		if(!((Player*)m_caster)->GetAura(768, 0))
+		{
+			switch(m_spellInfo->Id)
+			{
+				case 1850:
+				case 9821:
+				case 33357:
+					return SPELL_FAILED_DONT_REPORT;
+					break;
+			}
+		}
     // only allow triggered spells if at an ended battleground
     if( !m_IsTriggeredSpell && m_caster->GetTypeId() == TYPEID_PLAYER)
         if(BattleGround * bg = ((Player*)m_caster)->GetBattleGround())

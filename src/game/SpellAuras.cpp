@@ -1055,6 +1055,16 @@ void Aura::_RemoveAura()
     // only remove icon when the last aura of the spell is removed (current aura already removed from list)
     if (lastaura)
     {
+		// NetSky : Check if Catform still present and remove Sprint if not
+		if(!caster->GetAura(768, 0))
+		{
+			if(caster->HasAura(1850))
+				caster->RemoveAurasDueToSpell(1850);
+			if(caster->HasAura(9821))
+				caster->RemoveAurasDueToSpell(9821);
+			if(caster->HasAura(33357))
+				caster->RemoveAurasDueToSpell(33357);
+		}
         // unregister aura diminishing (and store last time)
         if (getDiminishGroup() != DIMINISHING_NONE )
             m_target->ApplyDiminishingAura(getDiminishGroup(),false);
