@@ -3701,6 +3701,20 @@ void Spell::TriggerSpell()
 
 SpellCastResult Spell::CheckCast(bool strict)
 {
+	// NetSky Checks for druid sprint ability - should only be aviable at catform
+	if(m_caster->GetTypeId()==TYPEID_PLAYER && ((Player*)m_caster)->getClass()==CLASS_DRUID)
+		if(!((Player*)m_caster)->HasAura(768))
+		{
+			switch(m_spellInfo->Id)
+			{
+				case 1850:
+				case 9821:
+				case 33357:
+					return SPELL_FAILED_DONT_REPORT;
+					break;
+			}
+		}
+	
     // check cooldowns to prevent cheating
     if(m_caster->GetTypeId()==TYPEID_PLAYER && ((Player*)m_caster)->HasSpellCooldown(m_spellInfo->Id))
     {

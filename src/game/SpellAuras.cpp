@@ -1059,8 +1059,17 @@ void Aura::_RemoveAura()
 		if(caster->getClass() == CLASS_DRUID)
 		{
 			if(!caster->HasAura(768))
+			{
 				if(caster->HasAura(48420))
 					caster->RemoveAurasDueToSpell(48420);
+				// Netsky : Checks to remove sprint aura if caster is not in cat form
+				if(caster->HasAura(1850))
+					caster->RemoveAurasDueToSpell(1850);
+				if(caster->HasAura(9821))
+					caster->RemoveAurasDueToSpell(9821);
+				if(caster->HasAura(33357))
+					caster->RemoveAurasDueToSpell(33357);
+			}
 			if(!caster->HasAura(33891))
 				if(caster->HasAura(48422))
 					caster->RemoveAurasDueToSpell(48422);
