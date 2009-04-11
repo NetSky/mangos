@@ -1055,31 +1055,31 @@ void Aura::_RemoveAura()
     // only remove icon when the last aura of the spell is removed (current aura already removed from list)
     if (lastaura)
     {
-		// Netsky : Mastershapeshifter remove checks
-		if(caster->getClass() == CLASS_DRUID)
-		{
-			if(!caster->HasAura(768))
-			{
-				if(caster->HasAura(48420))
-					caster->RemoveAurasDueToSpell(48420);
-				// Netsky : Checks to remove sprint aura if caster is not in cat form
-				if(caster->HasAura(1850))
-					caster->RemoveAurasDueToSpell(1850);
-				if(caster->HasAura(9821))
-					caster->RemoveAurasDueToSpell(9821);
-				if(caster->HasAura(33357))
-					caster->RemoveAurasDueToSpell(33357);
-			}
-			if(!caster->HasAura(33891))
-				if(caster->HasAura(48422))
-					caster->RemoveAurasDueToSpell(48422);
-			if(!caster->HasAura(24858))
-				if(caster->HasAura(48421))
-					caster->RemoveAurasDueToSpell(48421);
-			if(!caster->HasAura(5487) || !caster->HasAura(9634))
-				if(caster->HasAura(48418))
-					caster->RemoveAurasDueToSpell(48418);
-		}
+        // Netsky : Mastershapeshifter remove checks
+        if(caster->getClass() == CLASS_DRUID)
+        {
+            if(!caster->HasAura(768))
+            {
+                if(caster->HasAura(48420))
+                    caster->RemoveAurasDueToSpell(48420);
+                // Netsky : Checks to remove sprint aura if caster is not in cat form
+                if(caster->HasAura(1850))
+                    caster->RemoveAurasDueToSpell(1850);
+                if(caster->HasAura(9821))
+                    caster->RemoveAurasDueToSpell(9821);
+                if(caster->HasAura(33357))
+                    caster->RemoveAurasDueToSpell(33357);
+            }
+            if(!caster->HasAura(33891))
+                if(caster->HasAura(48422))
+                    caster->RemoveAurasDueToSpell(48422);
+            if(!caster->HasAura(24858))
+                if(caster->HasAura(48421))
+                    caster->RemoveAurasDueToSpell(48421);
+            if(!caster->HasAura(5487) || !caster->HasAura(9634))
+                if(caster->HasAura(48418))
+                    caster->RemoveAurasDueToSpell(48418);
+        }
 		
         // unregister aura diminishing (and store last time)
         if (getDiminishGroup() != DIMINISHING_NONE )
@@ -5270,9 +5270,9 @@ void Aura::HandleShapeshiftBoosts(bool apply)
 {
     uint32 spellId = 0;
     uint32 spellId2 = 0;
-	uint32 spellId3 = 0;
+    uint32 spellId3 = 0;
     uint32 HotWSpellId = 0;
-	int32  bp3 = 0;
+    int32  bp3 = 0;
 
     switch(GetModifier()->m_miscvalue)
     {
@@ -5280,25 +5280,24 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             spellId = 3025;
             HotWSpellId = 24900;
 			//Netsky : Checks for Mastershapeshifter
-			if(m_target->HasAura(48411))
-			{
-				spellId3 = 48420;
-				((Player*)m_target)->HandleBaseModValue(CRIT_PERCENTAGE,         PCT_MOD, float (((Player*)m_target)->GetTotalPercentageModValue(CRIT_PERCENTAGE) * 2 / 100), apply);
-			}
-			if(m_target->HasAura(48412))
-			{
-				spellId3 = 48420;
-				((Player*)m_target)->HandleBaseModValue(CRIT_PERCENTAGE,         PCT_MOD, float (((Player*)m_target)->GetTotalPercentageModValue(CRIT_PERCENTAGE) * 4 / 100), apply);
-			}
-			
+            if(m_target->HasAura(48411))
+            {
+                spellId3 = 48420;
+                ((Player*)m_target)->HandleBaseModValue(CRIT_PERCENTAGE,         PCT_MOD, float (((Player*)m_target)->GetTotalPercentageModValue(CRIT_PERCENTAGE) * 2 / 100), apply);
+            }
+            if(m_target->HasAura(48412))
+            {
+                spellId3 = 48420;
+                ((Player*)m_target)->HandleBaseModValue(CRIT_PERCENTAGE,         PCT_MOD, float (((Player*)m_target)->GetTotalPercentageModValue(CRIT_PERCENTAGE) * 4 / 100), apply);
+            }
             break;
         case FORM_TREE:
             spellId = 5420;
             spellId2 = 34123;
             break;
-			//Netsky : Checks for Mastershapeshifter
-			if(m_target->HasAura(48411) || m_target->HasAura(48412))
-				spellId3 = 48422;
+            //Netsky : Checks for Mastershapeshifter
+            if(m_target->HasAura(48411) || m_target->HasAura(48412))
+                spellId3 = 48422;
         case FORM_TRAVEL:
             spellId = 5419;
             break;
@@ -5309,33 +5308,33 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             spellId = 1178;
             spellId2 = 21178;
             HotWSpellId = 24899;
-			//Netsky : Checks for Mastershapeshifter
-			if(m_target->HasAura(48411))
-			{
-				spellId3 = 48418;
-				bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) / 450);
-			}
-			if(m_target->HasAura(48412))
-			{
-				spellId3 = 48418;
-				bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) * 2 / 450);
-			}
+            //Netsky : Checks for Mastershapeshifter
+            if(m_target->HasAura(48411))
+            {
+                spellId3 = 48418;
+                bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) / 450);
+            }
+            if(m_target->HasAura(48412))
+            {
+                spellId3 = 48418;
+                bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) * 2 / 450);
+            }
             break;
         case FORM_DIREBEAR:
             spellId = 9635;
             spellId2 = 21178;
             HotWSpellId = 24899;
-			//Netsky : Checks for Mastershapeshifter
-			if(m_target->HasAura(48411))
-			{
-				spellId3 = 48418;
-				bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) / 450);
-			}
-			if(m_target->HasAura(48412))
-			{
-				spellId3 = 48418;
-				bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) * 2 / 450);
-			}
+            //Netsky : Checks for Mastershapeshifter
+            if(m_target->HasAura(48411))
+            {
+                spellId3 = 48418;
+                bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) / 450);
+            }
+            if(m_target->HasAura(48412))
+            {
+                spellId3 = 48418;
+                bp3 = int32((((Player*)m_target)->GetFloatValue(UNIT_FIELD_MAXDAMAGE) + ((Player*)m_target)->GetFloatValue(UNIT_FIELD_MINDAMAGE)) * 2 / 450);
+            }
             break;
         case FORM_BATTLESTANCE:
             spellId = 21156;
@@ -5350,9 +5349,9 @@ void Aura::HandleShapeshiftBoosts(bool apply)
             spellId = 24905;
             // aura from effect trigger spell
             spellId2 = 24907;
-			//Netsky : Checks for Mastershapeshifter
-			if(m_target->HasAura(48411) || m_target->HasAura(48412))
-				spellId3 = 48421;
+            //Netsky : Checks for Mastershapeshifter
+            if(m_target->HasAura(48411) || m_target->HasAura(48412))
+                spellId3 = 48421;
             break;
         case FORM_FLIGHT:
             spellId = 33948;
