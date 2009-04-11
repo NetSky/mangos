@@ -9483,6 +9483,25 @@ int32 Unit::CalculateSpellDamage(SpellEntry const* spellProto, uint8 effect_inde
             spellProto->Effect[effect_index] != SPELL_EFFECT_KNOCK_BACK)
         value = int32(value*0.25f*exp(getLevel()*(70-spellProto->spellLevel)/1000.0f));
 
+	//Netsky : Dmg boni for Master Shapeshifter - this can be done better! my suggestion implementation of generic method for those kind of Auras(if there are more like this one =) )
+	if(((Player*)this)->getClass() == CLASS_DRUID && spellProto->SpellFamilyName == SPELLFAMILY_DRUID)
+	{	
+		if(((Player*)this)->HasAura(48411))
+		{
+			if(((Player*)this)->HasAura(48422) && spellProto->Effect[effect_index] != SPELL_EFFECT_SCHOOL_DAMAGE)
+				value = value * 1.02;
+			if(((Player*)this)->HasAura(48421) && spellProto->Effect[effect_index] != SPELL_EFFECT_HEAL)
+				value = value * 1.02;
+		}
+		if(((Player*)this)->HasAura(48412))
+		{
+			if(((Player*)this)->HasAura(48422) && spellProto->Effect[effect_index] == SPELL_EFFECT_HEAL)
+				value = value * 1.04;
+			if(((Player*)this)->HasAura(48421) && spellProto->Effect[effect_index] == SPELL_EFFECT_SCHOOL_DAMAGE)
+				value = value * 1.04;
+		}
+	}
+	
     return value;
 }
 
